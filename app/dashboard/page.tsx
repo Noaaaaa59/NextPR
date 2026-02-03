@@ -5,7 +5,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useDashboardData, useWorkouts } from '@/lib/hooks/useFirestoreData';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatWeight } from '@/lib/utils';
-import { Award, Calendar, Dumbbell, Trophy, ChevronDown, ChevronUp, Play } from 'lucide-react';
+import { Award, Calendar, Dumbbell, Trophy, ChevronDown, ChevronUp, Play, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SquatIcon, BenchIcon, DeadliftIcon } from '@/components/icons/LiftIcons';
 import Link from 'next/link';
@@ -14,13 +14,17 @@ import { generateProgram } from '@/lib/training/programGenerator';
 import { getStrengthLevel } from '@/lib/calculations/standards';
 import { DayPrescription } from '@/lib/training/types';
 import { Experience } from '@/types/user';
+import { updateUserProfile } from '@/lib/firebase/firestore';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function DashboardPage() {
-  const { user, userData } = useAuth();
+  const { user, userData, refreshUserData } = useAuth();
   const router = useRouter();
   const { truePRs, estimated1RMs, bestSession, loading } = useDashboardData(user?.uid);
   const { workouts, isLoading: workoutsLoading } = useWorkouts(user?.uid);
   const [showWorkoutDetails, setShowWorkoutDetails] = useState(false);
+  const [skipping, setSkipping] = useState(false);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   const weightUnit = userData?.preferences?.weightUnit || 'kg';
   const bodyweight = userData?.bodyweight || 80;
@@ -59,6 +63,37 @@ export default function DashboardPage() {
     const totalWeeks = program?.program.weeks.length || 1;
     const daysPerWeek = currentWeek?.days.length || 3;
     router.push(`/dashboard/workouts/new?preset=${workoutData}&week=${weekNum}&day=${dayNum}&totalWeeks=${totalWeeks}&daysPerWeek=${daysPerWeek}`);
+  };
+
+  const handleSkipDay = async () => {
+    if (!user || !program) return;
+
+    setSkipping(true);
+    try {
+      const totalWeeks = program.program.weeks.length;
+      const daysPerWeek = currentWeek?.days.length || 3;
+
+      let nextDay = progress.currentDay + 1;
+      let nextWeek = progress.currentWeek;
+
+      if (nextDay > daysPerWeek) {
+        nextDay = 1;
+        nextWeek = progress.currentWeek + 1;
+        if (nextWeek > totalWeeks) {
+          nextWeek = 1;
+        }
+      }
+
+      await updateUserProfile(user.uid, {
+        programProgress: {
+          currentWeek: nextWeek,
+          currentDay: nextDay
+        }
+      });
+      await refreshUserData();
+    } finally {
+      setSkipping(false);
+    }
   };
 
   const formatDate = (timestamp: any) => {
@@ -288,14 +323,24 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <Button
-                  size="sm"
-                  className="w-full"
-                  onClick={() => handleLaunchWorkout(nextDay, progress.currentWeek, progress.currentDay)}
-                >
-                  <Play className="h-3 w-3 mr-1" />
-                  Lancer la séance
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleLaunchWorkout(nextDay, progress.currentWeek, progress.currentDay)}
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Lancer
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowSkipConfirm(true)}
+                    disabled={skipping}
+                  >
+                    <SkipForward className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="text-center py-2">
@@ -313,6 +358,20 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={showSkipConfirm}
+        onOpenChange={setShowSkipConfirm}
+        title="Passer cette séance ?"
+        description="La séance sera marquée comme passée et tu passeras à la suivante. Cette action est irréversible."
+        confirmLabel="Passer"
+        cancelLabel="Annuler"
+        onConfirm={async () => {
+          await handleSkipDay();
+          setShowSkipConfirm(false);
+        }}
+        loading={skipping}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { Dumbbell, Calendar, ChevronRight, CheckCircle, Zap, Play, Wrench, Targe
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { updateUserProfile } from '@/lib/firebase/firestore';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function ProgramsPage() {
   const { user, userData, refreshUserData } = useAuth();
@@ -20,6 +21,7 @@ export default function ProgramsPage() {
   const { truePRs, loading: prsLoading } = useDashboardData(user?.uid);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [skipping, setSkipping] = useState(false);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   const bodyweight = userData?.bodyweight || 80;
   const gender = userData?.gender || 'male';
@@ -117,7 +119,7 @@ export default function ProgramsPage() {
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
-                onClick={handleSkipDay}
+                onClick={() => setShowSkipConfirm(true)}
                 disabled={skipping}
               >
                 <SkipForward className="h-3 w-3" />
@@ -261,7 +263,7 @@ export default function ProgramsPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={handleSkipDay}
+                onClick={() => setShowSkipConfirm(true)}
                 disabled={skipping}
               >
                 <SkipForward className="h-4 w-4" />
@@ -270,6 +272,20 @@ export default function ProgramsPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={showSkipConfirm}
+        onOpenChange={setShowSkipConfirm}
+        title="Passer cette séance ?"
+        description="La séance sera marquée comme passée et tu passeras à la suivante. Cette action est irréversible."
+        confirmLabel="Passer"
+        cancelLabel="Annuler"
+        onConfirm={async () => {
+          await handleSkipDay();
+          setShowSkipConfirm(false);
+        }}
+        loading={skipping}
+      />
 
       {recommendation && (
         <>

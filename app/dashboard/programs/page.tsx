@@ -9,11 +9,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WeekPrescription, DayPrescription } from '@/lib/training/types';
 import { Experience } from '@/types/user';
-import { Dumbbell, Calendar, ChevronRight, CheckCircle, Zap, Play, Wrench, Target, SkipForward } from 'lucide-react';
+import { Dumbbell, Calendar, ChevronRight, CheckCircle, Zap, Play, Wrench, Target, SkipForward, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function ProgramsPage() {
   const { user, userData, refreshUserData } = useAuth();
@@ -22,6 +30,10 @@ export default function ProgramsPage() {
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [skipping, setSkipping] = useState(false);
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
+  const [showRestartDialog, setShowRestartDialog] = useState(false);
+  const [restartWeek, setRestartWeek] = useState(1);
+  const [restartDay, setRestartDay] = useState(1);
+  const [restarting, setRestarting] = useState(false);
 
   const bodyweight = userData?.bodyweight || 80;
   const gender = userData?.gender || 'male';
@@ -90,6 +102,30 @@ export default function ProgramsPage() {
     } finally {
       setSkipping(false);
     }
+  };
+
+  const handleRestartCycle = async () => {
+    if (!user) return;
+
+    setRestarting(true);
+    try {
+      await updateUserProfile(user.uid, {
+        programProgress: {
+          currentWeek: restartWeek,
+          currentDay: restartDay
+        }
+      });
+      await refreshUserData();
+      setShowRestartDialog(false);
+    } finally {
+      setRestarting(false);
+    }
+  };
+
+  const openRestartDialog = () => {
+    setRestartWeek(1);
+    setRestartDay(1);
+    setShowRestartDialog(true);
   };
 
   const renderDayDetail = (day: DayPrescription, weekNumber: number, isCurrentDay: boolean = false) => {
@@ -287,6 +323,73 @@ export default function ProgramsPage() {
         loading={skipping}
       />
 
+      <Dialog open={showRestartDialog} onOpenChange={setShowRestartDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Redémarrer le cycle</DialogTitle>
+            <DialogDescription>
+              Choisis à quelle semaine et quel jour tu veux reprendre le programme.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Semaine</label>
+              <div className="grid grid-cols-4 gap-2">
+                {recommendation?.program.weeks.map((week, index) => (
+                  <Button
+                    key={week.weekNumber}
+                    variant={restartWeek === week.weekNumber ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRestartWeek(week.weekNumber)}
+                    className="text-xs"
+                  >
+                    S{week.weekNumber}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Jour</label>
+              <div className="grid grid-cols-3 gap-2">
+                {recommendation?.program.weeks[restartWeek - 1]?.days.map((day) => (
+                  <Button
+                    key={day.dayNumber}
+                    variant={restartDay === day.dayNumber ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRestartDay(day.dayNumber)}
+                    className="text-xs"
+                  >
+                    Jour {day.dayNumber}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">
+                Tu reprendras à : <span className="font-medium text-foreground">Semaine {restartWeek}, Jour {restartDay}</span>
+              </p>
+              {recommendation?.program.weeks[restartWeek - 1]?.days[restartDay - 1] && (
+                <p className="text-xs text-primary mt-1">
+                  {recommendation.program.weeks[restartWeek - 1].days[restartDay - 1].name}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRestartDialog(false)} disabled={restarting}>
+              Annuler
+            </Button>
+            <Button onClick={handleRestartCycle} disabled={restarting}>
+              {restarting ? '...' : 'Confirmer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {recommendation && (
         <>
           <Card className="mb-6 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
@@ -348,9 +451,20 @@ export default function ProgramsPage() {
 
           <Card>
             <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base">Aperçu du cycle</CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">Aperçu du cycle</CardTitle>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openRestartDialog}
+                  className="h-8 text-xs gap-1"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Redémarrer
+                </Button>
               </div>
             </CardHeader>
             <CardContent>

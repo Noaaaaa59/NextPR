@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WeekPrescription, DayPrescription } from '@/lib/training/types';
 import { Experience } from '@/types/user';
-import { Dumbbell, Calendar, ChevronRight, CheckCircle, Zap, Play, Wrench, Target, SkipForward, RotateCcw } from 'lucide-react';
+import { Dumbbell, Calendar, ChevronRight, ChevronDown, CheckCircle, Zap, Play, Wrench, Target, SkipForward, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { updateUserProfile } from '@/lib/firebase/firestore';
@@ -34,6 +34,7 @@ export default function ProgramsPage() {
   const [restartWeek, setRestartWeek] = useState(1);
   const [restartDay, setRestartDay] = useState(1);
   const [restarting, setRestarting] = useState(false);
+  const [showRecommendation, setShowRecommendation] = useState(false);
 
   const bodyweight = userData?.bodyweight || 80;
   const gender = userData?.gender || 'male';
@@ -398,60 +399,73 @@ export default function ProgramsPage() {
       {recommendation && (
         <>
           <Card className="mb-6 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Recommandation</CardTitle>
+            <CardHeader
+              className="pb-2 cursor-pointer"
+              onClick={() => setShowRecommendation(!showRecommendation)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg">Recommandation</CardTitle>
+                  <span className="text-sm text-muted-foreground">• {recommendation.program.name}</span>
+                </div>
+                {showRecommendation ? (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                )}
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold">{recommendation.program.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {recommendation.program.duration} semaines • 3 séances/semaine
-                  </p>
-                </div>
-              </div>
-
-              <p className="text-sm text-muted-foreground mb-4">
-                {recommendation.program.description}
-              </p>
-
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-background rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Squat 1RM</p>
-                  <p className="font-bold text-destructive">{recommendation.program.maxes.squat} kg</p>
-                </div>
-                <div className="bg-background rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Bench 1RM</p>
-                  <p className="font-bold text-destructive">{recommendation.program.maxes.bench} kg</p>
-                </div>
-                <div className="bg-background rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Deadlift 1RM</p>
-                  <p className="font-bold text-destructive">{recommendation.program.maxes.deadlift} kg</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-primary">Points clés du programme</p>
-                {recommendation.reasoning.slice(0, 4).map((reason, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-muted-foreground">{reason}</p>
+            {showRecommendation && (
+              <CardContent>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold">{recommendation.program.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {recommendation.program.duration} semaines • {programSettings.daysPerWeek} séances/semaine
+                    </p>
                   </div>
-                ))}
-              </div>
-
-              <div className="mt-4 p-3 bg-background rounded-lg">
-                <p className="text-xs font-medium mb-2">Progression attendue par cycle :</p>
-                <div className="flex gap-4 text-xs">
-                  <span>Squat: <span className="text-green-500">+{recommendation.expectedProgress.squat}kg</span></span>
-                  <span>Bench: <span className="text-green-500">+{recommendation.expectedProgress.bench}kg</span></span>
-                  <span>Deadlift: <span className="text-green-500">+{recommendation.expectedProgress.deadlift}kg</span></span>
                 </div>
-              </div>
-            </CardContent>
+
+                <p className="text-sm text-muted-foreground mb-4">
+                  {recommendation.program.description}
+                </p>
+
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-background rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Squat 1RM</p>
+                    <p className="font-bold text-destructive">{recommendation.program.maxes.squat} kg</p>
+                  </div>
+                  <div className="bg-background rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Bench 1RM</p>
+                    <p className="font-bold text-destructive">{recommendation.program.maxes.bench} kg</p>
+                  </div>
+                  <div className="bg-background rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Deadlift 1RM</p>
+                    <p className="font-bold text-destructive">{recommendation.program.maxes.deadlift} kg</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-primary">Points clés du programme</p>
+                  {recommendation.reasoning.slice(0, 4).map((reason, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground">{reason}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 p-3 bg-background rounded-lg">
+                  <p className="text-xs font-medium mb-2">Progression attendue par cycle :</p>
+                  <div className="flex gap-4 text-xs">
+                    <span>Squat: <span className="text-green-500">+{recommendation.expectedProgress.squat}kg</span></span>
+                    <span>Bench: <span className="text-green-500">+{recommendation.expectedProgress.bench}kg</span></span>
+                    <span>Deadlift: <span className="text-green-500">+{recommendation.expectedProgress.deadlift}kg</span></span>
+                  </div>
+                </div>
+              </CardContent>
+            )}
           </Card>
 
           <Card>

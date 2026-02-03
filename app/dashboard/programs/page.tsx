@@ -1,15 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useDashboardData } from '@/lib/hooks/useFirestoreData';
 import { getStrengthLevel } from '@/lib/calculations/standards';
 import { generateProgram, formatWeekSummary, formatSetDisplay } from '@/lib/training/programGenerator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ProgramRecommendation, WeekPrescription, DayPrescription } from '@/lib/training/types';
+import { WeekPrescription, DayPrescription } from '@/lib/training/types';
 import { Experience } from '@/types/user';
-import { Dumbbell, Calendar, ChevronRight, CheckCircle, Zap, Play, Wrench } from 'lucide-react';
+import { Dumbbell, Calendar, ChevronRight, CheckCircle, Zap, Play, Wrench, Target } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -42,6 +42,12 @@ export default function ProgramsPage() {
       })
     : null;
 
+  const progress = userData?.programProgress || { currentWeek: 1, currentDay: 1 };
+  const currentWeekIndex = Math.min(progress.currentWeek - 1, (recommendation?.program.weeks.length || 1) - 1);
+  const currentDayIndex = Math.min(progress.currentDay - 1, (recommendation?.program.weeks[currentWeekIndex]?.days.length || 1) - 1);
+  const currentWeekData = recommendation?.program.weeks[currentWeekIndex];
+  const currentDayData = currentWeekData?.days[currentDayIndex];
+
   const loading = prsLoading;
 
   const handleLaunchWorkout = (day: DayPrescription, weekNumber: number, dayNumber: number) => {
@@ -51,11 +57,18 @@ export default function ProgramsPage() {
     router.push(`/dashboard/workouts/new?preset=${workoutData}&week=${weekNumber}&day=${dayNumber}&totalWeeks=${totalWeeks}&daysPerWeek=${daysPerWeek}`);
   };
 
-  const renderDayDetail = (day: DayPrescription, weekNumber: number) => {
+  const renderDayDetail = (day: DayPrescription, weekNumber: number, isCurrentDay: boolean = false) => {
     return (
-      <div key={day.dayNumber} className="bg-muted/50 rounded-lg p-3">
+      <div key={day.dayNumber} className={`rounded-lg p-3 ${isCurrentDay ? 'bg-primary/10 ring-2 ring-primary/30' : 'bg-muted/50'}`}>
         <div className="flex items-center justify-between mb-2">
-          <p className="font-medium text-sm">{day.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-sm">{day.name}</p>
+            {isCurrentDay && (
+              <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                Aujourd'hui
+              </span>
+            )}
+          </div>
           <Button
             size="sm"
             variant="default"
@@ -102,20 +115,28 @@ export default function ProgramsPage() {
   const renderWeekCard = (week: WeekPrescription, index: number) => {
     const isSelected = selectedWeek === index;
     const isDeload = week.isDeload;
+    const isCurrentWeek = index === currentWeekIndex;
 
     return (
       <Card
         key={week.weekNumber}
         className={`cursor-pointer transition-all ${
           isSelected ? 'border-primary ring-2 ring-primary/20' : ''
-        } ${isDeload ? 'bg-muted/30' : ''}`}
+        } ${isDeload ? 'bg-muted/30' : ''} ${isCurrentWeek && !isSelected ? 'border-primary/50' : ''}`}
         onClick={() => setSelectedWeek(isSelected ? null : index)}
       >
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-sm">{week.name}</p>
-              <p className="text-xs text-muted-foreground">{formatWeekSummary(week)}</p>
+            <div className="flex items-center gap-2">
+              <div>
+                <p className="font-medium text-sm">{week.name}</p>
+                <p className="text-xs text-muted-foreground">{formatWeekSummary(week)}</p>
+              </div>
+              {isCurrentWeek && (
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  En cours
+                </span>
+              )}
             </div>
             {isDeload ? (
               <span className="text-xs bg-green-500/10 text-green-600 px-2 py-1 rounded-full">
@@ -129,7 +150,10 @@ export default function ProgramsPage() {
           {isSelected && (
             <div className="mt-4 space-y-3 border-t pt-4" onClick={(e) => e.stopPropagation()}>
               <p className="text-xs text-muted-foreground">{week.focus}</p>
-              {week.days.map((day) => renderDayDetail(day, week.weekNumber))}
+              {week.days.map((day) => {
+                const isCurrentDay = isCurrentWeek && day.dayNumber === progress.currentDay;
+                return renderDayDetail(day, week.weekNumber, isCurrentDay);
+              })}
             </div>
           )}
         </CardContent>
@@ -156,6 +180,41 @@ export default function ProgramsPage() {
           Génération intelligente basée sur ton niveau
         </p>
       </div>
+
+      {recommendation && currentDayData && currentWeekData && (
+        <Card className="mb-6 border-primary bg-gradient-to-br from-primary/10 to-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="h-5 w-5 text-primary" />
+              <span className="font-semibold">Séance du jour</span>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {currentWeekData.name} • Jour {progress.currentDay}
+              </span>
+            </div>
+            <div className="bg-background rounded-lg p-3 mb-3">
+              <p className="font-medium text-sm mb-2">{currentDayData.name}</p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                {currentDayData.exercises.slice(0, 3).map((ex, i) => (
+                  <div key={i} className="flex items-center gap-1">
+                    <span className="text-primary">{ex.name}:</span>
+                    <span>{ex.sets.length} séries</span>
+                  </div>
+                ))}
+                {currentDayData.exercises.length > 3 && (
+                  <div className="text-muted-foreground/70">+ {currentDayData.exercises.length - 3} exercices</div>
+                )}
+              </div>
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => handleLaunchWorkout(currentDayData, progress.currentWeek, progress.currentDay)}
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Lancer la séance
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {recommendation && (
         <>

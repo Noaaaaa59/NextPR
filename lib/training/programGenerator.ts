@@ -139,6 +139,7 @@ interface WeekSetsResult {
   light: SetPrescription[];
   bbb?: SetPrescription[];
   useTrainingMax?: boolean;
+  isDeload?: boolean;
 }
 
 function getWeekSets(cycleType: CycleType, weekNumber: number, duration: number = 4): WeekSetsResult {
@@ -173,7 +174,7 @@ function getWeekName(cycleType: CycleType, weekNumber: number, duration: number)
       return `Semaine ${weekNumber} - ${names531_4[weekNumber - 1] || '5/3/1'}`;
     }
     if (duration === 6) {
-      const names531_6 = ['Volume 5x5', 'Volume+', 'Force (3s)', 'Force (2s/1s)', 'Peak (Singles)', 'TEST PR 🎯'];
+      const names531_6 = ['Volume 5x5', 'Volume+', 'Force (3s)', 'Peak (Singles)', 'Déload 😴', 'TEST PR 🎯'];
       return `Semaine ${weekNumber} - ${names531_6[weekNumber - 1] || '5/3/1'}`;
     }
   }
@@ -185,7 +186,7 @@ function getWeekName(cycleType: CycleType, weekNumber: number, duration: number)
       return `Semaine ${weekNumber} - ${namesLinear4[weekNumber - 1] || 'Force'}`;
     }
     if (duration === 6) {
-      const namesLinear6 = ['Volume', 'Volume+', 'Force', 'Force+', 'Peak', 'TEST PR 🎯'];
+      const namesLinear6 = ['Volume', 'Force', 'Force+', 'Peak', 'Déload 😴', 'TEST PR 🎯'];
       return `Semaine ${weekNumber} - ${namesLinear6[weekNumber - 1] || 'Force'}`;
     }
   }
@@ -219,8 +220,8 @@ function getWeekFocus(cycleType: CycleType, weekNumber: number, duration: number
       '5x5 @ 65-75% TM - Construire le volume. AMRAP sur le dernier set.',
       '5x5 @ 70-80% TM - Volume intensifié. AMRAP sur le dernier set.',
       '4x3 @ 75-87.5% TM - Transition vers la force.',
-      'Doubles et singles jusqu\'à 95% TM. Habituer le système nerveux.',
-      'Singles lourds jusqu\'à 100% TM. Peak d\'intensité.',
+      'Singles jusqu\'à 97.5% TM. Peak d\'intensité.',
+      '😴 Récupération active. Charges légères pour arriver frais au test.',
       '🎯 TEST DE PR @ 102.5% 1RM - Donne tout pour battre ton record !',
     ];
     return duration === 6 ? focus531_6[weekNumber - 1] || '' : focus531_4[weekNumber - 1] || '';
@@ -235,10 +236,10 @@ function getWeekFocus(cycleType: CycleType, weekNumber: number, duration: number
     ];
     const focusLinear6 = [
       '5x5 @ 72.5% - Volume et adaptation.',
-      '4x4 @ 77.5% - Volume intensifié.',
-      '5x3 @ 82.5% - Transition vers la force.',
-      '4x2 @ 87.5% - Doubles lourds.',
+      '4x4 @ 77.5% - Transition vers la force.',
+      '5x3 @ 82.5% - Force maximale.',
       'Singles @ 90-95% - Peak d\'intensité.',
+      '😴 Récupération active. Charges légères pour arriver frais au test.',
       '🎯 TEST DE PR @ 102.5% - Donne tout pour battre ton record !',
     ];
     return duration === 6 ? focusLinear6[weekNumber - 1] || '' : focusLinear4[weekNumber - 1] || '';
@@ -378,12 +379,14 @@ function generateWeek(
   daysPerWeek: 3 | 4 | 5 = 3,
   priorityLift: PriorityLift = 'squat'
 ): WeekPrescription {
+  const weekSets = getWeekSets(cycleType, weekNumber, duration);
+
   // Déterminer si c'est une semaine de test ou de déload
   const isTestWeek = weekNumber === duration && cycleType !== 'block';
-  // Seul 'block' a un vrai déload (semaine 8)
-  const isDeload = cycleType === 'block' && weekNumber === 8;
-
-  const weekSets = getWeekSets(cycleType, weekNumber, duration);
+  // Déload: soit défini dans weekSets, soit semaine 8 pour block, soit semaine 5 pour 6 semaines
+  const isDeload = weekSets.isDeload === true ||
+                   (cycleType === 'block' && weekNumber === 8) ||
+                   (duration === 6 && weekNumber === 5);
 
   const daySplits = getDaySplits(daysPerWeek, priorityLift);
 

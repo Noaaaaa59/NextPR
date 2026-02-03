@@ -2,7 +2,9 @@ import { SetPrescription } from './types';
 
 // 6-week linear periodization - percentages based on ACTUAL 1RM (not training max)
 // Goal: Peak to PR or new PR by week 6
-export const WEEK_LINEAR: Record<number, { heavy: SetPrescription[]; light: SetPrescription[] }> = {
+// Structure: Volume → Force → Peak → Déload → TEST PR
+export const WEEK_LINEAR: Record<number, { heavy: SetPrescription[]; light: SetPrescription[]; isDeload?: boolean }> = {
+  // Semaine 1 - Volume (5x5)
   1: {
     heavy: [
       { reps: 5, percentage: 72.5 },
@@ -17,6 +19,7 @@ export const WEEK_LINEAR: Record<number, { heavy: SetPrescription[]; light: SetP
       { reps: 8, percentage: 60 },
     ],
   },
+  // Semaine 2 - Force (4x4)
   2: {
     heavy: [
       { reps: 4, percentage: 77.5 },
@@ -30,6 +33,7 @@ export const WEEK_LINEAR: Record<number, { heavy: SetPrescription[]; light: SetP
       { reps: 6, percentage: 65 },
     ],
   },
+  // Semaine 3 - Force (5x3)
   3: {
     heavy: [
       { reps: 3, percentage: 82.5 },
@@ -44,40 +48,45 @@ export const WEEK_LINEAR: Record<number, { heavy: SetPrescription[]; light: SetP
       { reps: 5, percentage: 70 },
     ],
   },
+  // Semaine 4 - Peak (doubles et singles)
   4: {
     heavy: [
       { reps: 2, percentage: 87.5 },
-      { reps: 2, percentage: 87.5 },
-      { reps: 2, percentage: 87.5 },
-      { reps: 2, percentage: 87.5 },
-    ],
-    light: [
-      { reps: 4, percentage: 72.5 },
-      { reps: 4, percentage: 72.5 },
-      { reps: 4, percentage: 72.5 },
-    ],
-  },
-  5: {
-    heavy: [
       { reps: 2, percentage: 90 },
-      { reps: 2, percentage: 92.5 },
+      { reps: 1, percentage: 92.5 },
       { reps: 1, percentage: 95 },
     ],
     light: [
-      { reps: 3, percentage: 75 },
-      { reps: 3, percentage: 75 },
-      { reps: 3, percentage: 75 },
+      { reps: 4, percentage: 70 },
+      { reps: 4, percentage: 70 },
+      { reps: 4, percentage: 70 },
     ],
   },
+  // Semaine 5 - DÉLOAD (récupération avant test)
+  5: {
+    heavy: [
+      { reps: 5, percentage: 50 },
+      { reps: 5, percentage: 55 },
+      { reps: 5, percentage: 60 },
+    ],
+    light: [
+      { reps: 5, percentage: 45 },
+      { reps: 5, percentage: 45 },
+    ],
+    isDeload: true,
+  },
+  // Semaine 6 - TEST DE PR
   6: {
     heavy: [
-      { reps: 1, percentage: 92.5 },
+      { reps: 3, percentage: 70 },
+      { reps: 2, percentage: 80 },
+      { reps: 1, percentage: 90 },
       { reps: 1, percentage: 97.5 },
       { reps: 1, percentage: 102.5, amrap: true },
     ],
     light: [
-      { reps: 3, percentage: 60 },
-      { reps: 3, percentage: 60 },
+      { reps: 3, percentage: 50 },
+      { reps: 3, percentage: 50 },
     ],
   },
 };
@@ -160,8 +169,8 @@ export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPres
   },
 };
 
-// 5/3/1 étendu sur 6 semaines - Volume → Force → Peak → TEST
-export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light: SetPrescription[]; bbb?: SetPrescription[]; useTrainingMax?: boolean }> = {
+// 5/3/1 étendu sur 6 semaines - Volume → Force → Peak → Déload → TEST
+export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light: SetPrescription[]; bbb?: SetPrescription[]; useTrainingMax?: boolean; isDeload?: boolean }> = {
   // Semaine 1 - Volume (5x5) basé sur TM
   1: {
     heavy: [
@@ -223,13 +232,13 @@ export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light
     ],
     useTrainingMax: true,
   },
-  // Semaine 4 - Force (doubles et singles) basé sur TM
+  // Semaine 4 - Peak (doubles et singles lourds) basé sur TM
   4: {
     heavy: [
       { reps: 3, percentage: 80 },
       { reps: 2, percentage: 87.5 },
-      { reps: 2, percentage: 92.5 },
-      { reps: 1, percentage: 95 },
+      { reps: 1, percentage: 92.5 },
+      { reps: 1, percentage: 97.5 },
     ],
     light: [
       { reps: 4, percentage: 65 },
@@ -238,19 +247,19 @@ export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light
     ],
     useTrainingMax: true,
   },
-  // Semaine 5 - Peak (singles lourds) basé sur TM
+  // Semaine 5 - DÉLOAD (récupération avant test)
   5: {
     heavy: [
-      { reps: 2, percentage: 85 },
-      { reps: 1, percentage: 92.5 },
-      { reps: 1, percentage: 97.5 },
-      { reps: 1, percentage: 100 },
+      { reps: 5, percentage: 50 },
+      { reps: 5, percentage: 55 },
+      { reps: 5, percentage: 60 },
     ],
     light: [
-      { reps: 3, percentage: 60 },
-      { reps: 3, percentage: 60 },
+      { reps: 5, percentage: 45 },
+      { reps: 5, percentage: 45 },
     ],
     useTrainingMax: true,
+    isDeload: true,
   },
   // Semaine 6 - TEST DE PR (basé sur 1RM RÉEL)
   6: {

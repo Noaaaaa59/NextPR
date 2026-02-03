@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Experience, Gender } from '@/types/user';
+import { Experience, Gender, PriorityLift } from '@/types/user';
 import { completeOnboarding } from '@/lib/firebase/firestore';
 import { useAuth } from '@/components/auth/AuthProvider';
 
@@ -21,7 +21,7 @@ interface OnboardingModalProps {
   onComplete: () => void;
 }
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
   const { user } = useAuth();
@@ -32,6 +32,9 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
   const [bodyweight, setBodyweight] = useState<string>('');
   const [experience, setExperience] = useState<Experience | null>(null);
   const [prs, setPRs] = useState({ squat: '', bench: '', deadlift: '' });
+  const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5>(3);
+  const [durationWeeks, setDurationWeeks] = useState<4 | 6>(4);
+  const [priorityLift, setPriorityLift] = useState<PriorityLift>('squat');
 
   const canProceedStep1 = gender !== null && parseFloat(bodyweight) > 0;
   const canProceedStep2 = experience !== null;
@@ -39,9 +42,10 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
     parseFloat(prs.squat) > 0 &&
     parseFloat(prs.bench) > 0 &&
     parseFloat(prs.deadlift) > 0;
+  const canProceedStep4 = true;
 
   const handleNext = () => {
-    if (step < 3) {
+    if (step < 4) {
       setStep((step + 1) as Step);
     }
   };
@@ -63,6 +67,11 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
           gender,
           bodyweight: parseFloat(bodyweight),
           experience,
+          programSettings: {
+            daysPerWeek,
+            durationWeeks,
+            priorityLift,
+          },
         },
         {
           squat: parseFloat(prs.squat) || 0,
@@ -100,7 +109,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
         </DialogHeader>
 
         <div className="flex justify-center gap-2 my-4">
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
               className={`w-3 h-3 rounded-full transition-colors ${
@@ -230,6 +239,87 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
           </div>
         )}
 
+        {step === 4 && (
+          <div className="space-y-6">
+            <p className="text-sm text-muted-foreground">
+              Configure ton programme d'entraînement
+            </p>
+
+            <div className="space-y-3">
+              <Label>Durée du cycle</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {([4, 6] as const).map((weeks) => (
+                  <Card
+                    key={weeks}
+                    className={`cursor-pointer transition-all ${
+                      durationWeeks === weeks
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'hover:border-primary/50'
+                    }`}
+                    onClick={() => setDurationWeeks(weeks)}
+                  >
+                    <CardContent className="p-3 text-center">
+                      <p className="text-lg font-bold">{weeks}</p>
+                      <p className="text-xs text-muted-foreground">semaines</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Jours par semaine</Label>
+              <div className="grid grid-cols-3 gap-3">
+                {([3, 4, 5] as const).map((days) => (
+                  <Card
+                    key={days}
+                    className={`cursor-pointer transition-all ${
+                      daysPerWeek === days
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'hover:border-primary/50'
+                    }`}
+                    onClick={() => setDaysPerWeek(days)}
+                  >
+                    <CardContent className="p-3 text-center">
+                      <p className="text-lg font-bold">{days}J</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {daysPerWeek > 3 && (
+              <div className="space-y-3">
+                <Label>Lift prioritaire (fréquence +)</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 'squat' as const, label: 'Squat' },
+                    { value: 'bench' as const, label: 'Bench' },
+                    { value: 'deadlift' as const, label: 'Deadlift' },
+                  ]).map((lift) => (
+                    <Card
+                      key={lift.value}
+                      className={`cursor-pointer transition-all ${
+                        priorityLift === lift.value
+                          ? 'border-primary ring-2 ring-primary/20'
+                          : 'hover:border-primary/50'
+                      }`}
+                      onClick={() => setPriorityLift(lift.value)}
+                    >
+                      <CardContent className="p-2 text-center">
+                        <p className="text-sm font-medium">{lift.label}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Ce lift sera travaillé {daysPerWeek === 4 ? '3' : '4'}x/semaine au lieu de 2x
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex justify-between mt-6">
           {step > 1 ? (
             <Button variant="outline" onClick={handleBack}>
@@ -239,12 +329,13 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
             <div />
           )}
 
-          {step < 3 ? (
+          {step < 4 ? (
             <Button
               onClick={handleNext}
               disabled={
                 (step === 1 && !canProceedStep1) ||
-                (step === 2 && !canProceedStep2)
+                (step === 2 && !canProceedStep2) ||
+                (step === 3 && !canProceedStep3)
               }
             >
               Suivant
@@ -252,7 +343,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
           ) : (
             <Button
               onClick={handleComplete}
-              disabled={!canProceedStep3 || loading}
+              disabled={!canProceedStep4 || loading}
             >
               {loading ? 'Enregistrement...' : 'Terminer'}
             </Button>

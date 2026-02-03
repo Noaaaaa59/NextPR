@@ -38,6 +38,14 @@ export interface ProgramProgress {
   startedAt?: Timestamp;
 }
 
+export type PriorityLift = 'squat' | 'bench' | 'deadlift';
+
+export interface ProgramSettings {
+  daysPerWeek: 3 | 4 | 5;
+  durationWeeks: 4 | 6;
+  priorityLift: PriorityLift;
+}
+
 export interface User {
   uid: string;
   email: string;
@@ -51,4 +59,5 @@ export interface User {
   friends?: string[];
   onboardingCompleted?: boolean;
   programProgress?: ProgramProgress;
+  programSettings?: ProgramSettings;
 }

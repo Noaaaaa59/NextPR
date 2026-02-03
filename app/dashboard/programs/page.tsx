@@ -48,13 +48,18 @@ export default function ProgramsPage() {
 
   const strengthLevel = hasPRs ? getStrengthLevel('squat', squatMax, bodyweight, gender) : 'intermediate';
 
+  const programSettings = userData?.programSettings || { daysPerWeek: 3 as const, durationWeeks: 4 as const, priorityLift: 'squat' as const };
+
   const recommendation = hasPRs && userData
     ? generateProgram({
         experience: experience as Experience,
         strengthLevel,
         bodyweight,
         currentMaxes: { squat: squatMax, bench: benchMax, deadlift: deadliftMax },
-        weeklyAvailability: 3,
+        weeklyAvailability: programSettings.daysPerWeek,
+        daysPerWeek: programSettings.daysPerWeek,
+        durationWeeks: programSettings.durationWeeks,
+        priorityLift: programSettings.priorityLift,
       })
     : null;
 

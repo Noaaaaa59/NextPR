@@ -9,8 +9,8 @@ import { Label } from '@/components/ui/label';
 import { signOut } from '@/lib/firebase/auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { User, Settings, LogOut, Save, Scale, Dumbbell } from 'lucide-react';
-import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE } from '@/types/user';
+import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar } from 'lucide-react';
+import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift } from '@/types/user';
 import { getAllStandards } from '@/lib/calculations/standards';
 
 type Experience = 'beginner' | 'intermediate' | 'advanced';
@@ -29,6 +29,9 @@ export default function ProfilePage() {
   const [experience, setExperience] = useState<Experience>(userData?.experience as Experience || 'beginner');
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(userData?.preferences?.weightUnit as WeightUnit || 'kg');
   const [restTimer, setRestTimer] = useState(userData?.preferences?.restTimerDefault?.toString() || '180');
+  const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5>(userData?.programSettings?.daysPerWeek || 3);
+  const [durationWeeks, setDurationWeeks] = useState<4 | 6>(userData?.programSettings?.durationWeeks || 4);
+  const [priorityLift, setPriorityLift] = useState<PriorityLift>(userData?.programSettings?.priorityLift || 'squat');
 
   const handleSignOut = async () => {
     await signOut();
@@ -50,6 +53,11 @@ export default function ProfilePage() {
           restTimerDefault: parseInt(restTimer) || 180,
           theme: userData?.preferences?.theme || 'light',
         },
+        programSettings: {
+          daysPerWeek,
+          durationWeeks,
+          priorityLift,
+        },
       });
       setIsEditing(false);
       window.location.reload();
@@ -67,6 +75,9 @@ export default function ProfilePage() {
     setExperience(userData?.experience as Experience || 'beginner');
     setWeightUnit(userData?.preferences?.weightUnit as WeightUnit || 'kg');
     setRestTimer(userData?.preferences?.restTimerDefault?.toString() || '180');
+    setDaysPerWeek(userData?.programSettings?.daysPerWeek || 3);
+    setDurationWeeks(userData?.programSettings?.durationWeeks || 4);
+    setPriorityLift(userData?.programSettings?.priorityLift || 'squat');
     setIsEditing(false);
   };
 
@@ -303,6 +314,97 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Programme</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-destructive font-medium">Durée du cycle</Label>
+              {isEditing ? (
+                <div className="flex gap-2">
+                  {([4, 6] as const).map((weeks) => (
+                    <button
+                      key={weeks}
+                      type="button"
+                      onClick={() => setDurationWeeks(weeks)}
+                      className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                        durationWeeks === weeks
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border'
+                      }`}
+                    >
+                      {weeks} semaines
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm font-medium py-2">{userData?.programSettings?.durationWeeks || 4} semaines</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-destructive font-medium">Jours par semaine</Label>
+              {isEditing ? (
+                <div className="flex gap-2">
+                  {([3, 4, 5] as const).map((days) => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setDaysPerWeek(days)}
+                      className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                        daysPerWeek === days
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border'
+                      }`}
+                    >
+                      {days} jours
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm font-medium py-2">{userData?.programSettings?.daysPerWeek || 3} jours/semaine</p>
+              )}
+            </div>
+
+            {(isEditing ? daysPerWeek > 3 : (userData?.programSettings?.daysPerWeek || 3) > 3) && (
+              <div className="space-y-2">
+                <Label className="text-destructive font-medium">Lift prioritaire</Label>
+                {isEditing ? (
+                  <div className="flex gap-2">
+                    {([
+                      { value: 'squat' as const, label: 'Squat' },
+                      { value: 'bench' as const, label: 'Bench' },
+                      { value: 'deadlift' as const, label: 'Deadlift' },
+                    ]).map((lift) => (
+                      <button
+                        key={lift.value}
+                        type="button"
+                        onClick={() => setPriorityLift(lift.value)}
+                        className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                          priorityLift === lift.value
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background hover:bg-muted border-border'
+                        }`}
+                      >
+                        {lift.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium py-2 capitalize">{userData?.programSettings?.priorityLift || 'squat'}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Ce lift sera travaillé {daysPerWeek === 4 ? '3' : '4'}x/semaine
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

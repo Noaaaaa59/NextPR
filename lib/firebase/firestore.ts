@@ -367,6 +367,11 @@ export async function completeOnboarding(
     gender: 'male' | 'female';
     bodyweight: number;
     experience: 'beginner' | 'intermediate' | 'advanced' | 'elite';
+    programSettings?: {
+      daysPerWeek: 3 | 4 | 5;
+      durationWeeks: 4 | 6;
+      priorityLift: 'squat' | 'bench' | 'deadlift';
+    };
   },
   prs: { squat: number; bench: number; deadlift: number }
 ): Promise<void> {

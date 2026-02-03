@@ -210,6 +210,11 @@ export default function DashboardPage() {
                     {bestSession.lifts.squat} / {bestSession.lifts.bench} / {bestSession.lifts.deadlift}
                   </p>
                 )}
+                {!loading && !bestSession && (
+                  <p className="text-xs text-muted-foreground">
+                    Fais S/B/D dans une même séance
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>

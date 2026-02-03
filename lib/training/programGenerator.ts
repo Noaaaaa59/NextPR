@@ -166,6 +166,7 @@ function getWeekSets(cycleType: CycleType, weekNumber: number, duration: number 
 }
 
 function getWeekName(cycleType: CycleType, weekNumber: number, duration: number): string {
+  // 5/3/1 - structure spécifique avec test PR à la fin
   if (cycleType === '531') {
     if (duration === 4) {
       const names531_4 = ['5s (Volume)', '3s (Force)', 'Singles (Peak)', 'TEST PR 🎯'];
@@ -177,23 +178,30 @@ function getWeekName(cycleType: CycleType, weekNumber: number, duration: number)
     }
   }
 
-  const isDeload = (duration === 4 && weekNumber === 4) ||
-                   (duration === 6 && weekNumber === 6);
+  // Linear - test PR à la dernière semaine
+  if (cycleType === 'linear') {
+    if (duration === 4) {
+      const namesLinear4 = ['Volume', 'Force', 'Peak', 'TEST PR 🎯'];
+      return `Semaine ${weekNumber} - ${namesLinear4[weekNumber - 1] || 'Force'}`;
+    }
+    if (duration === 6) {
+      const namesLinear6 = ['Volume', 'Volume+', 'Force', 'Force+', 'Peak', 'TEST PR 🎯'];
+      return `Semaine ${weekNumber} - ${namesLinear6[weekNumber - 1] || 'Force'}`;
+    }
+  }
 
-  if (isDeload) {
+  // Block - déload seulement pour block (semaine 8)
+  if (cycleType === 'block') {
+    if (weekNumber <= 3) return `Semaine ${weekNumber} - Accumulation`;
+    if (weekNumber <= 6) return `Semaine ${weekNumber} - Intensification`;
+    if (weekNumber === 7) return `Semaine ${weekNumber} - TEST PR 🎯`;
     return `Semaine ${weekNumber} - Déload`;
   }
 
-  if (duration === 4) {
-    const names = ['Volume', 'Force', 'Peak'];
-    return `Semaine ${weekNumber} - ${names[weekNumber - 1] || 'Force'}`;
-  }
-
-  if (duration === 6) {
-    if (weekNumber <= 2) return `Semaine ${weekNumber} - Volume`;
-    if (weekNumber <= 4) return `Semaine ${weekNumber} - Force`;
-    if (weekNumber === 5) return `Semaine ${weekNumber} - Peak`;
-    return `Semaine ${weekNumber} - Test PR 🎯`;
+  // Hypertrophy
+  if (cycleType === 'hypertrophy') {
+    const namesHyper = ['Volume', 'Volume+', 'Intensité', 'Test AMRAP'];
+    return `Semaine ${weekNumber} - ${namesHyper[weekNumber - 1] || 'Volume'}`;
   }
 
   return `Semaine ${weekNumber}`;
@@ -218,28 +226,48 @@ function getWeekFocus(cycleType: CycleType, weekNumber: number, duration: number
     return duration === 6 ? focus531_6[weekNumber - 1] || '' : focus531_4[weekNumber - 1] || '';
   }
 
-  const focus4Weeks = [
-    'Volume modéré, construire la base',
-    'Intensité augmentée, moins de reps',
-    'Semaine de test, AMRAP sur le dernier set',
-    'Récupération active - Déload',
-  ];
-
-  const focus6Weeks = [
-    'Volume élevé, adaptation musculaire',
-    'Volume élevé, adaptation musculaire',
-    'Transition vers la force',
-    'Charges plus lourdes',
-    'Peak d\'intensité, préparation au max',
-    '🎯 Test de nouveaux PRs - donne tout !',
-  ];
-
-  if (duration === 4) {
-    return focus4Weeks[weekNumber - 1] || '';
+  if (cycleType === 'linear') {
+    const focusLinear4 = [
+      '5x5 @ 72.5% - Construire le volume et la technique.',
+      '5x3 @ 82.5% - Transition vers la force.',
+      'Singles @ 90-95% - Peak d\'intensité.',
+      '🎯 TEST DE PR @ 102.5% - Singles montants jusqu\'au nouveau max !',
+    ];
+    const focusLinear6 = [
+      '5x5 @ 72.5% - Volume et adaptation.',
+      '4x4 @ 77.5% - Volume intensifié.',
+      '5x3 @ 82.5% - Transition vers la force.',
+      '4x2 @ 87.5% - Doubles lourds.',
+      'Singles @ 90-95% - Peak d\'intensité.',
+      '🎯 TEST DE PR @ 102.5% - Donne tout pour battre ton record !',
+    ];
+    return duration === 6 ? focusLinear6[weekNumber - 1] || '' : focusLinear4[weekNumber - 1] || '';
   }
-  if (duration === 6) {
-    return focus6Weeks[weekNumber - 1] || '';
+
+  if (cycleType === 'block') {
+    const focusBlock = [
+      '4x8 @ 67.5% - Accumulation de volume.',
+      '4x6 @ 72.5% - Accumulation intensifiée.',
+      '4x5 @ 77.5% - Fin de l\'accumulation.',
+      '4x4 @ 82.5% - Début de l\'intensification.',
+      '3x3 @ 87.5% - Force maximale.',
+      '3x2 @ 90-92.5% - Préparation au peak.',
+      '🎯 TEST DE PR @ 102.5% - Singles jusqu\'au nouveau max !',
+      'Récupération active - Déload.',
+    ];
+    return focusBlock[weekNumber - 1] || '';
   }
+
+  if (cycleType === 'hypertrophy') {
+    const focusHyper = [
+      '4x10 @ 62.5% - Volume pour l\'hypertrophie.',
+      '4x10 @ 65% - Volume intensifié.',
+      '5x8 @ 70% - Reps modérées, plus de charge.',
+      'AMRAP @ 72.5% - Test de répétitions max.',
+    ];
+    return focusHyper[weekNumber - 1] || '';
+  }
+
   return '';
 }
 
@@ -351,10 +379,10 @@ function generateWeek(
   daysPerWeek: 3 | 4 | 5 = 3,
   priorityLift: PriorityLift = 'squat'
 ): WeekPrescription {
-  // Pour le 5/3/1: la dernière semaine est le TEST (pas un déload)
-  const is531 = cycleType === '531';
-  const isTestWeek = is531 && weekNumber === duration;
-  const isDeload = !is531 && ((duration === 4 && weekNumber === 4) || (duration === 6 && weekNumber === 6));
+  // Déterminer si c'est une semaine de test ou de déload
+  const isTestWeek = weekNumber === duration && cycleType !== 'block';
+  // Seul 'block' a un vrai déload (semaine 8)
+  const isDeload = cycleType === 'block' && weekNumber === 8;
 
   const weekSets = getWeekSets(cycleType, weekNumber, duration);
 

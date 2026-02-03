@@ -82,8 +82,11 @@ export const WEEK_LINEAR: Record<number, { heavy: SetPrescription[]; light: SetP
   },
 };
 
-// 5/3/1 style - 4 weeks
-export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPrescription[] }> = {
+// 5/3/1 Jim Wendler - 4 weeks
+// IMPORTANT: Ces pourcentages sont basés sur le TRAINING MAX (TM = 90% du 1RM)
+// La fonction calculateWorkingWeight531 applique automatiquement le TM
+export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPrescription[]; bbb: SetPrescription[] }> = {
+  // Semaine 1 - "5s Week"
   1: {
     heavy: [
       { reps: 5, percentage: 65 },
@@ -91,11 +94,19 @@ export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPres
       { reps: 5, percentage: 85, amrap: true },
     ],
     light: [
-      { reps: 8, percentage: 55 },
-      { reps: 8, percentage: 55 },
-      { reps: 8, percentage: 55 },
+      { reps: 5, percentage: 65 },
+      { reps: 5, percentage: 65 },
+      { reps: 5, percentage: 65 },
+    ],
+    bbb: [
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
     ],
   },
+  // Semaine 2 - "3s Week"
   2: {
     heavy: [
       { reps: 3, percentage: 70 },
@@ -103,11 +114,19 @@ export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPres
       { reps: 3, percentage: 90, amrap: true },
     ],
     light: [
-      { reps: 6, percentage: 60 },
-      { reps: 6, percentage: 60 },
-      { reps: 6, percentage: 60 },
+      { reps: 5, percentage: 60 },
+      { reps: 5, percentage: 60 },
+      { reps: 5, percentage: 60 },
+    ],
+    bbb: [
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
     ],
   },
+  // Semaine 3 - "5/3/1 Week"
   3: {
     heavy: [
       { reps: 5, percentage: 75 },
@@ -119,7 +138,15 @@ export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPres
       { reps: 5, percentage: 65 },
       { reps: 5, percentage: 65 },
     ],
+    bbb: [
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+      { reps: 10, percentage: 50 },
+    ],
   },
+  // Semaine 4 - Déload
   4: {
     heavy: [
       { reps: 5, percentage: 40 },
@@ -130,7 +157,22 @@ export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPres
       { reps: 5, percentage: 40 },
       { reps: 5, percentage: 40 },
     ],
+    bbb: [
+      { reps: 10, percentage: 30 },
+      { reps: 10, percentage: 30 },
+      { reps: 10, percentage: 30 },
+    ],
   },
+};
+
+// 5/3/1 étendu sur 6 semaines (2 cycles de 3 semaines sans déload intermédiaire)
+export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light: SetPrescription[]; bbb: SetPrescription[] }> = {
+  1: WEEK_531[1],
+  2: WEEK_531[2],
+  3: WEEK_531[3],
+  4: { ...WEEK_531[1], heavy: WEEK_531[1].heavy.map(s => ({ ...s, percentage: s.percentage + 2.5 })) },
+  5: { ...WEEK_531[2], heavy: WEEK_531[2].heavy.map(s => ({ ...s, percentage: s.percentage + 2.5 })) },
+  6: WEEK_531[4],
 };
 
 // Block periodization - 8 weeks
@@ -313,4 +355,13 @@ export function roundToPlate(weight: number, increment: number = 2.5): number {
 
 export function calculateWorkingWeight(oneRepMax: number, percentage: number): number {
   return roundToPlate(oneRepMax * (percentage / 100));
+}
+
+export function calculateTrainingMax(oneRepMax: number): number {
+  return roundToPlate(oneRepMax * 0.9);
+}
+
+export function calculateWorkingWeight531(oneRepMax: number, percentage: number): number {
+  const trainingMax = calculateTrainingMax(oneRepMax);
+  return roundToPlate(trainingMax * (percentage / 100));
 }

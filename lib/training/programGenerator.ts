@@ -12,12 +12,15 @@ import {
 } from './types';
 import {
   WEEK_531,
+  WEEK_531_EXTENDED,
   WEEK_LINEAR,
   WEEK_HYPERTROPHY,
   WEEK_BLOCK,
   ACCESSORY_CONFIG,
   ACCESSORIES_BY_LIFT,
   calculateWorkingWeight,
+  calculateWorkingWeight531,
+  calculateTrainingMax,
 } from './percentages';
 
 interface UserProfile {
@@ -130,9 +133,18 @@ function getDaySplits(daysPerWeek: 3 | 4 | 5, priorityLift: PriorityLift): DaySp
   return baseSplit;
 }
 
-function getWeekSets(cycleType: CycleType, weekNumber: number): { heavy: SetPrescription[]; light: SetPrescription[] } {
+interface WeekSetsResult {
+  heavy: SetPrescription[];
+  light: SetPrescription[];
+  bbb?: SetPrescription[];
+}
+
+function getWeekSets(cycleType: CycleType, weekNumber: number, duration: number = 4): WeekSetsResult {
   switch (cycleType) {
     case '531':
+      if (duration === 6) {
+        return WEEK_531_EXTENDED[weekNumber] || WEEK_531_EXTENDED[1];
+      }
       return WEEK_531[weekNumber] || WEEK_531[1];
     case 'linear':
       return WEEK_LINEAR[weekNumber] || WEEK_LINEAR[1];
@@ -153,6 +165,17 @@ function getWeekName(cycleType: CycleType, weekNumber: number, duration: number)
     return `Semaine ${weekNumber} - Déload`;
   }
 
+  if (cycleType === '531') {
+    if (duration === 4) {
+      const names531 = ['5s (5 reps)', '3s (3 reps)', '5/3/1 (PR)'];
+      return `Semaine ${weekNumber} - ${names531[weekNumber - 1] || '5/3/1'}`;
+    }
+    if (duration === 6) {
+      const names531_6 = ['5s', '3s', '5/3/1', '5s+', '3s+'];
+      return `Semaine ${weekNumber} - ${names531_6[weekNumber - 1] || '5/3/1'}`;
+    }
+  }
+
   if (duration === 4) {
     const names = ['Volume', 'Force', 'Peak'];
     return `Semaine ${weekNumber} - ${names[weekNumber - 1] || 'Force'}`;
@@ -168,7 +191,25 @@ function getWeekName(cycleType: CycleType, weekNumber: number, duration: number)
   return `Semaine ${weekNumber}`;
 }
 
-function getWeekFocus(cycleType: CycleType, weekNumber: number): string {
+function getWeekFocus(cycleType: CycleType, weekNumber: number, duration: number): string {
+  if (cycleType === '531') {
+    const focus531_4 = [
+      '3x5 @ 65-75-85% TM - AMRAP sur le dernier set (vise 8+ reps)',
+      '3x3 @ 70-80-90% TM - AMRAP sur le dernier set (vise 5+ reps)',
+      '5/3/1 @ 75-85-95% TM - AMRAP sur le dernier set (vise 3+ reps)',
+      'Récupération active - charges légères',
+    ];
+    const focus531_6 = [
+      '3x5 @ 65-75-85% TM - AMRAP (vise 8+ reps)',
+      '3x3 @ 70-80-90% TM - AMRAP (vise 5+ reps)',
+      '5/3/1 @ 75-85-95% TM - AMRAP (vise 3+ reps)',
+      '3x5 @ 67.5-77.5-87.5% TM - Cycle 2',
+      '3x3 @ 72.5-82.5-92.5% TM - Cycle 2',
+      'Récupération active - Déload',
+    ];
+    return duration === 6 ? focus531_6[weekNumber - 1] || '' : focus531_4[weekNumber - 1] || '';
+  }
+
   const focus4Weeks = [
     'Volume modéré, construire la base',
     'Intensité augmentée, moins de reps',
@@ -219,7 +260,7 @@ function generateDay(
   primaryLift: 'squat' | 'bench' | 'deadlift',
   secondaryLift: 'squat' | 'bench' | 'deadlift',
   maxes: Maxes,
-  weekSets: { heavy: SetPrescription[]; light: SetPrescription[] },
+  weekSets: WeekSetsResult,
   cycleType: CycleType,
   isDeload: boolean
 ): DayPrescription {
@@ -229,12 +270,15 @@ function generateDay(
     deadlift: 'Deadlift',
   };
 
+  const is531 = cycleType === '531';
+  const calcWeight = is531 ? calculateWorkingWeight531 : calculateWorkingWeight;
+
   const primaryExercise: ExercisePrescription = {
     name: liftNames[primaryLift],
     type: primaryLift,
     sets: weekSets.heavy.map((set) => ({
       ...set,
-      weight: calculateWorkingWeight(maxes[primaryLift], set.percentage),
+      weight: calcWeight(maxes[primaryLift], set.percentage),
     })),
   };
 
@@ -243,17 +287,34 @@ function generateDay(
     type: secondaryLift,
     sets: weekSets.light.map((set) => ({
       ...set,
-      weight: calculateWorkingWeight(maxes[secondaryLift], set.percentage),
+      weight: calcWeight(maxes[secondaryLift], set.percentage),
     })),
   };
 
+  const exercises: ExercisePrescription[] = [primaryExercise, secondaryExercise];
+
+  if (is531 && weekSets.bbb && !isDeload) {
+    const bbbExercise: ExercisePrescription = {
+      name: `${liftNames[primaryLift]} (BBB)`,
+      type: primaryLift,
+      isToolExercise: true,
+      sets: weekSets.bbb.map((set) => ({
+        ...set,
+        weight: calcWeight(maxes[primaryLift], set.percentage),
+      })),
+      notes: 'Boring But Big - 5x10 @ 50% TM',
+    };
+    exercises.push(bbbExercise);
+  }
+
   const accessories = generateAccessories(primaryLift, cycleType, isDeload);
+  exercises.push(...accessories);
 
   return {
     dayNumber,
     name: `Jour ${dayNumber} - ${liftNames[primaryLift]} + ${liftNames[secondaryLift]}`,
     mainLift: primaryLift,
-    exercises: [primaryExercise, secondaryExercise, ...accessories],
+    exercises,
   };
 }
 
@@ -268,7 +329,7 @@ function generateWeek(
   const isDeload = (duration === 4 && weekNumber === 4) ||
                    (duration === 6 && weekNumber === 6);
   const adjustedWeekNumber = getAdjustedWeekNumber(weekNumber, duration, cycleType);
-  const weekSets = getWeekSets(cycleType, adjustedWeekNumber);
+  const weekSets = getWeekSets(cycleType, adjustedWeekNumber, duration);
 
   const daySplits = getDaySplits(daysPerWeek, priorityLift);
 
@@ -290,7 +351,7 @@ function generateWeek(
     name: getWeekName(cycleType, weekNumber, duration),
     isDeload,
     days,
-    focus: getWeekFocus(cycleType, weekNumber),
+    focus: getWeekFocus(cycleType, weekNumber, duration),
   };
 }
 
@@ -324,7 +385,7 @@ function getCycleDescription(cycleType: CycleType, daysPerWeek: number = 3, prio
 
   switch (cycleType) {
     case '531':
-      return `Programme 5/3/1 adapté. ${daysPerWeek} jours/semaine.${extraDays}`;
+      return `Programme 5/3/1 de Jim Wendler avec BBB (Boring But Big). Basé sur le Training Max (90% du 1RM). ${daysPerWeek} jours/semaine.${extraDays}`;
     case 'linear':
       return `Périodisation linéaire. Du volume vers l'intensité maximale. ${daysPerWeek} jours/semaine.${extraDays}`;
     case 'hypertrophy':
@@ -369,8 +430,10 @@ function getReasonings(profile: UserProfile, cycleType: CycleType, daysPerWeek: 
   }
 
   if (cycleType === '531') {
-    reasons.push('Le 5/3/1 est idéal pour une progression durable.');
-    reasons.push('AMRAP sur le dernier set pour pousser au-delà des prescriptions.');
+    reasons.push('Training Max = 90% de ton 1RM pour une progression durable.');
+    reasons.push('AMRAP sur le dernier set - ne va pas à l\'échec, garde 1-2 reps en réserve.');
+    reasons.push('BBB (5x10 @ 50%) pour le volume et l\'hypertrophie.');
+    reasons.push('Progression: +2.5kg upper body, +5kg lower body par cycle.');
   }
 
   if (cycleType === 'block') {

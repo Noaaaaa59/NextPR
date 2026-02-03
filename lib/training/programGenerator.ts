@@ -137,16 +137,23 @@ interface WeekSetsResult {
   heavy: SetPrescription[];
   light: SetPrescription[];
   bbb?: SetPrescription[];
+  useTrainingMax?: boolean;
 }
 
 function getWeekSets(cycleType: CycleType, weekNumber: number, duration: number = 4): WeekSetsResult {
   switch (cycleType) {
     case '531':
+      // 5/3/1 a des structures différentes pour 4 et 6 semaines
       if (duration === 6) {
         return WEEK_531_EXTENDED[weekNumber] || WEEK_531_EXTENDED[1];
       }
       return WEEK_531[weekNumber] || WEEK_531[1];
     case 'linear':
+      // Linear: 6 semaines, mapping pour 4 semaines
+      if (duration === 4) {
+        const mapping4: Record<number, number> = { 1: 1, 2: 3, 3: 5, 4: 6 };
+        return WEEK_LINEAR[mapping4[weekNumber] || 1] || WEEK_LINEAR[1];
+      }
       return WEEK_LINEAR[weekNumber] || WEEK_LINEAR[1];
     case 'hypertrophy':
       return WEEK_HYPERTROPHY[weekNumber] || WEEK_HYPERTROPHY[1];
@@ -158,22 +165,22 @@ function getWeekSets(cycleType: CycleType, weekNumber: number, duration: number 
 }
 
 function getWeekName(cycleType: CycleType, weekNumber: number, duration: number): string {
+  if (cycleType === '531') {
+    if (duration === 4) {
+      const names531_4 = ['5s (Volume)', '3s (Force)', 'Singles (Peak)', 'TEST PR 🎯'];
+      return `Semaine ${weekNumber} - ${names531_4[weekNumber - 1] || '5/3/1'}`;
+    }
+    if (duration === 6) {
+      const names531_6 = ['Volume 5x5', 'Volume+', 'Force (3s)', 'Force (2s/1s)', 'Peak (Singles)', 'TEST PR 🎯'];
+      return `Semaine ${weekNumber} - ${names531_6[weekNumber - 1] || '5/3/1'}`;
+    }
+  }
+
   const isDeload = (duration === 4 && weekNumber === 4) ||
                    (duration === 6 && weekNumber === 6);
 
   if (isDeload) {
     return `Semaine ${weekNumber} - Déload`;
-  }
-
-  if (cycleType === '531') {
-    if (duration === 4) {
-      const names531 = ['5s (5 reps)', '3s (3 reps)', '5/3/1 (PR)'];
-      return `Semaine ${weekNumber} - ${names531[weekNumber - 1] || '5/3/1'}`;
-    }
-    if (duration === 6) {
-      const names531_6 = ['5s', '3s', '5/3/1', '5s+', '3s+'];
-      return `Semaine ${weekNumber} - ${names531_6[weekNumber - 1] || '5/3/1'}`;
-    }
   }
 
   if (duration === 4) {
@@ -185,7 +192,7 @@ function getWeekName(cycleType: CycleType, weekNumber: number, duration: number)
     if (weekNumber <= 2) return `Semaine ${weekNumber} - Volume`;
     if (weekNumber <= 4) return `Semaine ${weekNumber} - Force`;
     if (weekNumber === 5) return `Semaine ${weekNumber} - Peak`;
-    return `Semaine ${weekNumber} - Test PR`;
+    return `Semaine ${weekNumber} - Test PR 🎯`;
   }
 
   return `Semaine ${weekNumber}`;
@@ -194,18 +201,18 @@ function getWeekName(cycleType: CycleType, weekNumber: number, duration: number)
 function getWeekFocus(cycleType: CycleType, weekNumber: number, duration: number): string {
   if (cycleType === '531') {
     const focus531_4 = [
-      '3x5 @ 65-75-85% TM - AMRAP sur le dernier set (vise 8+ reps)',
-      '3x3 @ 70-80-90% TM - AMRAP sur le dernier set (vise 5+ reps)',
-      '5/3/1 @ 75-85-95% TM - AMRAP sur le dernier set (vise 3+ reps)',
-      'Récupération active - charges légères',
+      '5x5 @ 65-85% TM - AMRAP sur le dernier set. Volume et technique.',
+      '4x3 @ 70-90% TM - AMRAP sur le dernier set. Force maximale.',
+      'Singles pyramidaux jusqu\'à 95% TM. Préparation au test.',
+      '🎯 TEST DE PR @ 102.5% 1RM - Singles montants jusqu\'au nouveau max !',
     ];
     const focus531_6 = [
-      '3x5 @ 65-75-85% TM - AMRAP (vise 8+ reps)',
-      '3x3 @ 70-80-90% TM - AMRAP (vise 5+ reps)',
-      '5/3/1 @ 75-85-95% TM - AMRAP (vise 3+ reps)',
-      '3x5 @ 67.5-77.5-87.5% TM - Cycle 2',
-      '3x3 @ 72.5-82.5-92.5% TM - Cycle 2',
-      'Récupération active - Déload',
+      '5x5 @ 65-75% TM - Construire le volume. AMRAP sur le dernier set.',
+      '5x5 @ 70-80% TM - Volume intensifié. AMRAP sur le dernier set.',
+      '4x3 @ 75-87.5% TM - Transition vers la force.',
+      'Doubles et singles jusqu\'à 95% TM. Habituer le système nerveux.',
+      'Singles lourds jusqu\'à 100% TM. Peak d\'intensité.',
+      '🎯 TEST DE PR @ 102.5% 1RM - Donne tout pour battre ton record !',
     ];
     return duration === 6 ? focus531_6[weekNumber - 1] || '' : focus531_4[weekNumber - 1] || '';
   }
@@ -223,13 +230,13 @@ function getWeekFocus(cycleType: CycleType, weekNumber: number, duration: number
     'Transition vers la force',
     'Charges plus lourdes',
     'Peak d\'intensité, préparation au max',
-    'Test de nouveaux PRs - donne tout !',
+    '🎯 Test de nouveaux PRs - donne tout !',
   ];
 
-  if (weekNumber <= 4) {
+  if (duration === 4) {
     return focus4Weeks[weekNumber - 1] || '';
   }
-  if (weekNumber <= 6) {
+  if (duration === 6) {
     return focus6Weeks[weekNumber - 1] || '';
   }
   return '';
@@ -262,7 +269,8 @@ function generateDay(
   maxes: Maxes,
   weekSets: WeekSetsResult,
   cycleType: CycleType,
-  isDeload: boolean
+  isDeload: boolean,
+  isTestWeek: boolean = false
 ): DayPrescription {
   const liftNames = {
     squat: 'Squat',
@@ -270,8 +278,10 @@ function generateDay(
     deadlift: 'Deadlift',
   };
 
+  // Pour le 5/3/1, utilise le Training Max sauf pour les semaines de test
   const is531 = cycleType === '531';
-  const calcWeight = is531 ? calculateWorkingWeight531 : calculateWorkingWeight;
+  const useTrainingMax = is531 && weekSets.useTrainingMax !== false;
+  const calcWeight = useTrainingMax ? calculateWorkingWeight531 : calculateWorkingWeight;
 
   const primaryExercise: ExercisePrescription = {
     name: liftNames[primaryLift],
@@ -326,10 +336,12 @@ function generateWeek(
   daysPerWeek: 3 | 4 | 5 = 3,
   priorityLift: PriorityLift = 'squat'
 ): WeekPrescription {
-  const isDeload = (duration === 4 && weekNumber === 4) ||
-                   (duration === 6 && weekNumber === 6);
-  const adjustedWeekNumber = getAdjustedWeekNumber(weekNumber, duration, cycleType);
-  const weekSets = getWeekSets(cycleType, adjustedWeekNumber, duration);
+  // Pour le 5/3/1: la dernière semaine est le TEST (pas un déload)
+  const is531 = cycleType === '531';
+  const isTestWeek = is531 && weekNumber === duration;
+  const isDeload = !is531 && ((duration === 4 && weekNumber === 4) || (duration === 6 && weekNumber === 6));
+
+  const weekSets = getWeekSets(cycleType, weekNumber, duration);
 
   const daySplits = getDaySplits(daysPerWeek, priorityLift);
 
@@ -342,7 +354,8 @@ function generateWeek(
       maxes,
       isExtraDay ? getMediumSets(weekSets) : weekSets,
       cycleType,
-      isDeload
+      isDeload,
+      isTestWeek
     );
   });
 
@@ -353,19 +366,6 @@ function generateWeek(
     days,
     focus: getWeekFocus(cycleType, weekNumber, duration),
   };
-}
-
-function getAdjustedWeekNumber(weekNumber: number, duration: number, cycleType: CycleType): number {
-  if (duration === 4) {
-    return weekNumber;
-  }
-  if (duration === 6) {
-    if (weekNumber <= 2) return 1;
-    if (weekNumber <= 4) return 2;
-    if (weekNumber === 5) return 3;
-    return 4;
-  }
-  return weekNumber;
 }
 
 function getMediumSets(weekSets: { heavy: SetPrescription[]; light: SetPrescription[] }): { heavy: SetPrescription[]; light: SetPrescription[] } {
@@ -430,10 +430,12 @@ function getReasonings(profile: UserProfile, cycleType: CycleType, daysPerWeek: 
   }
 
   if (cycleType === '531') {
-    reasons.push('Training Max = 90% de ton 1RM pour une progression durable.');
-    reasons.push('AMRAP sur le dernier set - ne va pas à l\'échec, garde 1-2 reps en réserve.');
-    reasons.push('BBB (5x10 @ 50%) pour le volume et l\'hypertrophie.');
-    reasons.push('Progression: +2.5kg upper body, +5kg lower body par cycle.');
+    reasons.push('Basé sur le Training Max (90% du 1RM) pour les semaines d\'entraînement.');
+    reasons.push('Dernière semaine = TEST DE PR avec des singles jusqu\'à 102.5% de ton 1RM actuel.');
+    reasons.push('AMRAP sur les sets clés - ne va pas à l\'échec, garde 1-2 reps en réserve.');
+    if (daysPerWeek <= 4) {
+      reasons.push('BBB (5x10 @ 50%) les premières semaines pour le volume.');
+    }
   }
 
   if (cycleType === 'block') {

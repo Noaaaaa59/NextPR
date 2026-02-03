@@ -136,36 +136,36 @@ export default function ProgramsPage() {
   const renderDayDetail = (day: DayPrescription, weekNumber: number, isCurrentDay: boolean = false) => {
     return (
       <div key={day.dayNumber} className={`rounded-lg p-3 ${isCurrentDay ? 'bg-primary/10 ring-2 ring-primary/30' : 'bg-muted/50'}`}>
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-2">
+          <p className="font-medium text-sm mb-2">{day.name}</p>
           <div className="flex items-center gap-2">
-            <p className="font-medium text-sm">{day.name}</p>
             {isCurrentDay && (
               <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
                 Aujourd'hui
               </span>
             )}
-          </div>
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant="default"
-              className="h-7 text-xs gap-1"
-              onClick={() => handleLaunchWorkout(day, weekNumber, day.dayNumber)}
-            >
-              <Play className="h-3 w-3" />
-              Lancer
-            </Button>
-            {isCurrentDay && (
+            <div className="flex gap-1 ml-auto">
               <Button
                 size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={() => setShowSkipConfirm(true)}
-                disabled={skipping}
+                variant="default"
+                className="h-7 text-xs gap-1"
+                onClick={() => handleLaunchWorkout(day, weekNumber, day.dayNumber)}
               >
-                <SkipForward className="h-3 w-3" />
+                <Play className="h-3 w-3" />
+                Lancer
               </Button>
-            )}
+              {isCurrentDay && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => setShowSkipConfirm(true)}
+                  disabled={skipping}
+                >
+                  <SkipForward className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
         {day.exercises.map((exercise, exIdx) => (

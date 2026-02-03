@@ -459,3 +459,27 @@ export function calculateWorkingWeight531(oneRepMax: number, percentage: number)
   const trainingMax = calculateTrainingMax(oneRepMax);
   return roundToPlate(trainingMax * (percentage / 100));
 }
+
+// Calcule le poids cible pour un test de PR avec progression garantie
+// Pour les petits maxs (<80kg): +5kg minimum (plus réaliste pour débutants)
+// Pour les maxs moyens (80-120kg): +2.5kg minimum
+// Pour les gros maxs (>120kg): pourcentage standard
+export function calculatePRTarget(oneRepMax: number, percentage: number): number {
+  const rawTarget = oneRepMax * (percentage / 100);
+  const roundedTarget = roundToPlate(rawTarget);
+
+  // Garantir une progression minimale basée sur le niveau
+  let minProgression: number;
+  if (oneRepMax < 80) {
+    minProgression = 5; // +5kg pour les débutants
+  } else if (oneRepMax < 120) {
+    minProgression = 2.5; // +2.5kg pour niveau intermédiaire
+  } else {
+    minProgression = 2.5; // Pour les avancés, le % fait déjà le job
+  }
+
+  const minTarget = oneRepMax + minProgression;
+
+  // Retourne le plus grand des deux (arrondi à la plaque)
+  return roundToPlate(Math.max(roundedTarget, minTarget));
+}

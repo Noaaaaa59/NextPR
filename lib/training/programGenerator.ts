@@ -21,6 +21,7 @@ import {
   calculateWorkingWeight,
   calculateWorkingWeight531,
   calculateTrainingMax,
+  calculatePRTarget,
 } from './percentages';
 
 interface UserProfile {
@@ -281,14 +282,28 @@ function generateDay(
   // Pour le 5/3/1, utilise le Training Max sauf pour les semaines de test
   const is531 = cycleType === '531';
   const useTrainingMax = is531 && weekSets.useTrainingMax !== false;
-  const calcWeight = useTrainingMax ? calculateWorkingWeight531 : calculateWorkingWeight;
+  const isTestWeekForPR = is531 && weekSets.useTrainingMax === false;
+
+  // Fonction pour calculer le poids selon le contexte
+  const calcWeightForSet = (oneRepMax: number, percentage: number): number => {
+    // Pour les sets de test PR (>100%), utilise calculatePRTarget pour garantir progression
+    if (isTestWeekForPR && percentage > 100) {
+      return calculatePRTarget(oneRepMax, percentage);
+    }
+    // Pour les semaines normales 5/3/1, utilise le Training Max
+    if (useTrainingMax) {
+      return calculateWorkingWeight531(oneRepMax, percentage);
+    }
+    // Sinon, utilise le 1RM direct
+    return calculateWorkingWeight(oneRepMax, percentage);
+  };
 
   const primaryExercise: ExercisePrescription = {
     name: liftNames[primaryLift],
     type: primaryLift,
     sets: weekSets.heavy.map((set) => ({
       ...set,
-      weight: calcWeight(maxes[primaryLift], set.percentage),
+      weight: calcWeightForSet(maxes[primaryLift], set.percentage),
     })),
   };
 
@@ -297,20 +312,20 @@ function generateDay(
     type: secondaryLift,
     sets: weekSets.light.map((set) => ({
       ...set,
-      weight: calcWeight(maxes[secondaryLift], set.percentage),
+      weight: calcWeightForSet(maxes[secondaryLift], set.percentage),
     })),
   };
 
   const exercises: ExercisePrescription[] = [primaryExercise, secondaryExercise];
 
-  if (is531 && weekSets.bbb && !isDeload) {
+  if (is531 && weekSets.bbb && !isDeload && !isTestWeekForPR) {
     const bbbExercise: ExercisePrescription = {
       name: `${liftNames[primaryLift]} (BBB)`,
       type: primaryLift,
       isToolExercise: true,
       sets: weekSets.bbb.map((set) => ({
         ...set,
-        weight: calcWeight(maxes[primaryLift], set.percentage),
+        weight: calcWeightForSet(maxes[primaryLift], set.percentage),
       })),
       notes: 'Boring But Big - 5x10 @ 50% TM',
     };

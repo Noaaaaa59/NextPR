@@ -151,9 +151,10 @@ function getWeekSets(cycleType: CycleType, weekNumber: number, duration: number 
       }
       return WEEK_531[weekNumber] || WEEK_531[1];
     case 'linear':
-      // Linear: 6 semaines, mapping pour 4 semaines
+      // Linear: 6 semaines, mapping pour 4 semaines (éviter semaine 5 = déload)
       if (duration === 4) {
-        const mapping4: Record<number, number> = { 1: 1, 2: 3, 3: 5, 4: 6 };
+        // S1→Volume, S2→Force, S3→Peak, S4→Test PR
+        const mapping4: Record<number, number> = { 1: 1, 2: 3, 3: 4, 4: 6 };
         return WEEK_LINEAR[mapping4[weekNumber] || 1] || WEEK_LINEAR[1];
       }
       return WEEK_LINEAR[weekNumber] || WEEK_LINEAR[1];
@@ -383,10 +384,10 @@ function generateWeek(
 
   // Déterminer si c'est une semaine de test ou de déload
   const isTestWeek = weekNumber === duration && cycleType !== 'block';
-  // Déload: soit défini dans weekSets, soit semaine 8 pour block, soit semaine 5 pour 6 semaines
-  const isDeload = weekSets.isDeload === true ||
-                   (cycleType === 'block' && weekNumber === 8) ||
-                   (duration === 6 && weekNumber === 5);
+  // Déload: semaine 5 pour programmes 6 semaines, semaine 8 pour block
+  // Ne PAS utiliser weekSets.isDeload car le mapping peut pointer vers une semaine déload
+  const isDeload = (duration === 6 && weekNumber === 5) ||
+                   (cycleType === 'block' && weekNumber === 8);
 
   const daySplits = getDaySplits(daysPerWeek, priorityLift);
 

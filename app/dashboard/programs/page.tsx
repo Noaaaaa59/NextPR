@@ -407,7 +407,6 @@ export default function ProgramsPage() {
                 <div className="flex items-center gap-2">
                   <Zap className="h-5 w-5 text-primary" />
                   <CardTitle className="text-lg">Recommandation</CardTitle>
-                  <span className="text-sm text-muted-foreground">• {recommendation.program.name}</span>
                 </div>
                 {showRecommendation ? (
                   <ChevronDown className="h-5 w-5 text-muted-foreground" />

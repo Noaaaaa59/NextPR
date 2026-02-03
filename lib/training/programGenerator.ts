@@ -310,12 +310,11 @@ function generateDay(
   // Pour le 5/3/1, utilise le Training Max sauf pour les semaines de test
   const is531 = cycleType === '531';
   const useTrainingMax = is531 && weekSets.useTrainingMax !== false;
-  const isTestWeekForPR = is531 && weekSets.useTrainingMax === false;
 
   // Fonction pour calculer le poids selon le contexte
   const calcWeightForSet = (oneRepMax: number, percentage: number): number => {
-    // Pour les sets de test PR (>100%), utilise calculatePRTarget pour garantir progression
-    if (isTestWeekForPR && percentage > 100) {
+    // Pour TOUS les programmes: si c'est une semaine de test avec % > 100, garantir la progression
+    if (isTestWeek && percentage > 100) {
       return calculatePRTarget(oneRepMax, percentage);
     }
     // Pour les semaines normales 5/3/1, utilise le Training Max
@@ -346,7 +345,7 @@ function generateDay(
 
   const exercises: ExercisePrescription[] = [primaryExercise, secondaryExercise];
 
-  if (is531 && weekSets.bbb && !isDeload && !isTestWeekForPR) {
+  if (is531 && weekSets.bbb && !isDeload && !isTestWeek) {
     const bbbExercise: ExercisePrescription = {
       name: `${liftNames[primaryLift]} (BBB)`,
       type: primaryLift,

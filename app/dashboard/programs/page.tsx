@@ -9,15 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WeekPrescription, DayPrescription } from '@/lib/training/types';
 import { Experience } from '@/types/user';
-import { Dumbbell, Calendar, ChevronRight, CheckCircle, Zap, Play, Wrench, Target } from 'lucide-react';
+import { Dumbbell, Calendar, ChevronRight, CheckCircle, Zap, Play, Wrench, Target, SkipForward } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { updateUserProfile } from '@/lib/firebase/firestore';
 
 export default function ProgramsPage() {
-  const { user, userData } = useAuth();
+  const { user, userData, refreshUserData } = useAuth();
   const router = useRouter();
   const { truePRs, loading: prsLoading } = useDashboardData(user?.uid);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [skipping, setSkipping] = useState(false);
 
   const bodyweight = userData?.bodyweight || 80;
   const gender = userData?.gender || 'male';
@@ -57,6 +59,37 @@ export default function ProgramsPage() {
     router.push(`/dashboard/workouts/new?preset=${workoutData}&week=${weekNumber}&day=${dayNumber}&totalWeeks=${totalWeeks}&daysPerWeek=${daysPerWeek}`);
   };
 
+  const handleSkipDay = async () => {
+    if (!user || !recommendation) return;
+
+    setSkipping(true);
+    try {
+      const totalWeeks = recommendation.program.weeks.length;
+      const daysPerWeek = recommendation.program.weeks[0]?.days.length || 3;
+
+      let nextDay = progress.currentDay + 1;
+      let nextWeek = progress.currentWeek;
+
+      if (nextDay > daysPerWeek) {
+        nextDay = 1;
+        nextWeek = progress.currentWeek + 1;
+        if (nextWeek > totalWeeks) {
+          nextWeek = 1;
+        }
+      }
+
+      await updateUserProfile(user.uid, {
+        programProgress: {
+          currentWeek: nextWeek,
+          currentDay: nextDay
+        }
+      });
+      await refreshUserData();
+    } finally {
+      setSkipping(false);
+    }
+  };
+
   const renderDayDetail = (day: DayPrescription, weekNumber: number, isCurrentDay: boolean = false) => {
     return (
       <div key={day.dayNumber} className={`rounded-lg p-3 ${isCurrentDay ? 'bg-primary/10 ring-2 ring-primary/30' : 'bg-muted/50'}`}>
@@ -69,15 +102,28 @@ export default function ProgramsPage() {
               </span>
             )}
           </div>
-          <Button
-            size="sm"
-            variant="default"
-            className="h-7 text-xs gap-1"
-            onClick={() => handleLaunchWorkout(day, weekNumber, day.dayNumber)}
-          >
-            <Play className="h-3 w-3" />
-            Lancer
-          </Button>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="default"
+              className="h-7 text-xs gap-1"
+              onClick={() => handleLaunchWorkout(day, weekNumber, day.dayNumber)}
+            >
+              <Play className="h-3 w-3" />
+              Lancer
+            </Button>
+            {isCurrentDay && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={handleSkipDay}
+                disabled={skipping}
+              >
+                <SkipForward className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
         {day.exercises.map((exercise, exIdx) => (
           <div key={exIdx} className="mb-2">
@@ -205,13 +251,22 @@ export default function ProgramsPage() {
                 )}
               </div>
             </div>
-            <Button
-              className="w-full"
-              onClick={() => handleLaunchWorkout(currentDayData, progress.currentWeek, progress.currentDay)}
-            >
-              <Play className="h-4 w-4 mr-2" />
-              Lancer la séance
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1"
+                onClick={() => handleLaunchWorkout(currentDayData, progress.currentWeek, progress.currentDay)}
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Lancer la séance
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleSkipDay}
+                disabled={skipping}
+              >
+                <SkipForward className="h-4 w-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

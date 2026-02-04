@@ -52,6 +52,27 @@ export async function deleteWorkout(userId: string, workoutId: string): Promise<
   await deleteDoc(workoutRef);
 }
 
+// Helper to remove undefined values recursively (Firestore doesn't accept undefined)
+function removeUndefined(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => removeUndefined(item));
+  }
+  if (obj instanceof Timestamp) {
+    return obj;
+  }
+  if (typeof obj === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefined(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export async function saveDraftWorkout(userId: string, draft: Omit<DraftWorkout, 'id' | 'userId' | 'startedAt' | 'updatedAt'> & { startedAt?: Timestamp }): Promise<string> {
   const draftRef = doc(db, 'users', userId, 'draftWorkout', 'current');
 
@@ -67,20 +88,18 @@ export async function saveDraftWorkout(userId: string, draft: Omit<DraftWorkout,
 
   const now = Timestamp.now();
 
-  // Build draft data, excluding undefined values (Firestore doesn't accept undefined)
-  const draftData: Record<string, any> = {
+  // Build draft data and clean all undefined values recursively
+  const draftData = removeUndefined({
     exercises: draft.exercises,
     title: draft.title,
     userId,
     startedAt: draft.startedAt || existingStartedAt || now,
     updatedAt: now,
-  };
-
-  // Only add optional fields if they have values
-  if (draft.programWeek !== undefined) draftData.programWeek = draft.programWeek;
-  if (draft.programDay !== undefined) draftData.programDay = draft.programDay;
-  if (draft.totalWeeks !== undefined) draftData.totalWeeks = draft.totalWeeks;
-  if (draft.daysPerWeek !== undefined) draftData.daysPerWeek = draft.daysPerWeek;
+    programWeek: draft.programWeek,
+    programDay: draft.programDay,
+    totalWeeks: draft.totalWeeks,
+    daysPerWeek: draft.daysPerWeek,
+  });
 
   await setDoc(draftRef, draftData);
   return 'current';

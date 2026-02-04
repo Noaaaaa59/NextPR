@@ -6,6 +6,7 @@ import {
   deleteDoc,
   getDoc,
   getDocs,
+  setDoc,
   query,
   where,
   orderBy,
@@ -53,17 +54,25 @@ export async function deleteWorkout(userId: string, workoutId: string): Promise<
 
 export async function saveDraftWorkout(userId: string, draft: Omit<DraftWorkout, 'id' | 'userId' | 'startedAt' | 'updatedAt'> & { startedAt?: Timestamp }): Promise<string> {
   const draftRef = doc(db, 'users', userId, 'draftWorkout', 'current');
-  const existingDraft = await getDoc(draftRef);
+
+  let existingStartedAt: Timestamp | null = null;
+  try {
+    const existingDraft = await getDoc(draftRef);
+    if (existingDraft.exists()) {
+      existingStartedAt = existingDraft.data()?.startedAt || null;
+    }
+  } catch (e) {
+    // Ignore if we can't read existing draft
+  }
 
   const now = Timestamp.now();
   const draftData: Omit<DraftWorkout, 'id'> = {
     ...draft,
     userId,
-    startedAt: draft.startedAt || existingDraft.data()?.startedAt || now,
+    startedAt: draft.startedAt || existingStartedAt || now,
     updatedAt: now,
   };
 
-  const { setDoc } = await import('firebase/firestore');
   await setDoc(draftRef, draftData);
   return 'current';
 }

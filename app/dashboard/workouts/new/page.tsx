@@ -50,18 +50,18 @@ export default function NewWorkoutPage() {
     deadlift: 'Deadlift'
   };
 
-  const saveDraft = useCallback(async () => {
-    if (!user || exercises.length === 0) return;
+  const saveDraft = useCallback(async (exercisesToSave: ExerciseData[], title: string, info: typeof programInfo) => {
+    if (!user || exercisesToSave.length === 0) return;
 
     setAutoSaving(true);
     try {
       await saveDraftWorkout(user.uid, {
-        exercises,
-        title: workoutTitle,
-        programWeek: programInfo?.week,
-        programDay: programInfo?.day,
-        totalWeeks: programInfo?.totalWeeks,
-        daysPerWeek: programInfo?.daysPerWeek,
+        exercises: exercisesToSave,
+        title: title,
+        programWeek: info?.week,
+        programDay: info?.day,
+        totalWeeks: info?.totalWeeks,
+        daysPerWeek: info?.daysPerWeek,
         startedAt: draftStartedAt.current || undefined,
       });
     } catch (error) {
@@ -69,50 +69,49 @@ export default function NewWorkoutPage() {
     } finally {
       setAutoSaving(false);
     }
-  }, [user, exercises, workoutTitle, programInfo]);
+  }, [user]);
 
   const scheduleDraftSave = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
+    // Save after 500ms of inactivity (reduced from 2s for better reliability)
     saveTimeoutRef.current = setTimeout(() => {
-      saveDraft();
-    }, 3000);
-  }, [saveDraft]);
+      saveDraft(exercises, workoutTitle, programInfo);
+    }, 500);
+  }, [saveDraft, exercises, workoutTitle, programInfo]);
 
   useEffect(() => {
-    const loadDraft = async () => {
+    const initializeWorkout = async () => {
       if (!user || draftLoaded) return;
 
       const presetParam = searchParams.get('preset');
-      if (presetParam) {
-        setDraftLoaded(true);
-        return;
-      }
 
-      try {
-        const draft = await getDraftWorkout(user.uid);
-        if (draft) {
-          setExercises(draft.exercises as ExerciseData[]);
-          setWorkoutTitle(draft.title);
-          draftStartedAt.current = draft.startedAt;
-          if (draft.programWeek && draft.programDay) {
-            setProgramInfo({
-              week: draft.programWeek,
-              day: draft.programDay,
-              totalWeeks: draft.totalWeeks || 4,
-              daysPerWeek: draft.daysPerWeek || 3,
-            });
-            setPresetLoaded(true);
+      if (!presetParam) {
+        try {
+          const draft = await getDraftWorkout(user.uid);
+          if (draft) {
+            setExercises(draft.exercises as ExerciseData[]);
+            setWorkoutTitle(draft.title);
+            draftStartedAt.current = draft.startedAt;
+            if (draft.programWeek && draft.programDay) {
+              setProgramInfo({
+                week: draft.programWeek,
+                day: draft.programDay,
+                totalWeeks: draft.totalWeeks || 4,
+                daysPerWeek: draft.daysPerWeek || 3,
+              });
+              setPresetLoaded(true);
+            }
           }
+        } catch (error) {
+          console.error('Error loading draft:', error);
         }
-      } catch (error) {
-        console.error('Error loading draft:', error);
       }
       setDraftLoaded(true);
     };
 
-    loadDraft();
+    initializeWorkout();
   }, [user, draftLoaded, searchParams]);
 
   useEffect(() => {
@@ -126,6 +125,54 @@ export default function NewWorkoutPage() {
       }
     };
   }, [exercises, workoutTitle, draftLoaded, scheduleDraftSave]);
+
+  // Use ref to track latest state for event handlers
+  const exercisesRef = useRef(exercises);
+  const workoutTitleRef = useRef(workoutTitle);
+  const programInfoRef = useRef(programInfo);
+
+  useEffect(() => {
+    exercisesRef.current = exercises;
+    workoutTitleRef.current = workoutTitle;
+    programInfoRef.current = programInfo;
+  }, [exercises, workoutTitle, programInfo]);
+
+  useEffect(() => {
+    const saveCurrentState = () => {
+      if (user && exercisesRef.current.length > 0) {
+        // Clear any pending save timeout
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        saveDraft(exercisesRef.current, workoutTitleRef.current, programInfoRef.current);
+      }
+    };
+
+    // Save when page becomes hidden (more reliable than beforeunload)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveCurrentState();
+      }
+    };
+
+    // Also save on beforeunload as a fallback
+    const handleBeforeUnload = () => {
+      saveCurrentState();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+      // Save on component unmount
+      saveCurrentState();
+    };
+  }, [user, saveDraft]);
 
   useEffect(() => {
     const presetParam = searchParams.get('preset');

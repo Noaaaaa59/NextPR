@@ -19,6 +19,10 @@ service cloud.firestore {
       match /programs/{programId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      match /draftWorkout/{draftId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     match /programs/{programId} {

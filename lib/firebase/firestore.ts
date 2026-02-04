@@ -14,10 +14,11 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './config';
-import { Workout, Lift } from '@/types/workout';
+import { Workout, Lift, DraftWorkout } from '@/types/workout';
 import { Program } from '@/types/program';
 import { User } from '@/types/user';
 import { calculateOneRepMax } from '../calculations/oneRepMax';
+import { Timestamp } from 'firebase/firestore';
 
 export async function createWorkout(workout: Omit<Workout, 'id'>): Promise<string> {
   const workoutsRef = collection(db, 'users', workout.userId, 'workouts');
@@ -48,6 +49,40 @@ export async function updateWorkout(
 export async function deleteWorkout(userId: string, workoutId: string): Promise<void> {
   const workoutRef = doc(db, 'users', userId, 'workouts', workoutId);
   await deleteDoc(workoutRef);
+}
+
+export async function saveDraftWorkout(userId: string, draft: Omit<DraftWorkout, 'id' | 'userId' | 'startedAt' | 'updatedAt'> & { startedAt?: Timestamp }): Promise<string> {
+  const draftRef = doc(db, 'users', userId, 'draftWorkout', 'current');
+  const existingDraft = await getDoc(draftRef);
+
+  const now = Timestamp.now();
+  const draftData: Omit<DraftWorkout, 'id'> = {
+    ...draft,
+    userId,
+    startedAt: draft.startedAt || existingDraft.data()?.startedAt || now,
+    updatedAt: now,
+  };
+
+  const { setDoc } = await import('firebase/firestore');
+  await setDoc(draftRef, draftData);
+  return 'current';
+}
+
+export async function getDraftWorkout(userId: string): Promise<DraftWorkout | null> {
+  const draftRef = doc(db, 'users', userId, 'draftWorkout', 'current');
+  const snapshot = await getDoc(draftRef);
+
+  if (!snapshot.exists()) return null;
+
+  return {
+    id: snapshot.id,
+    ...snapshot.data(),
+  } as DraftWorkout;
+}
+
+export async function deleteDraftWorkout(userId: string): Promise<void> {
+  const draftRef = doc(db, 'users', userId, 'draftWorkout', 'current');
+  await deleteDoc(draftRef);
 }
 
 export async function createLift(lift: Omit<Lift, 'id'>): Promise<string> {

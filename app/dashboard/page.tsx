@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { useDashboardData, useWorkouts } from '@/lib/hooks/useFirestoreData';
+import { useDashboardData, useWorkouts, useDraftWorkout } from '@/lib/hooks/useFirestoreData';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatWeight } from '@/lib/utils';
-import { Award, Calendar, Dumbbell, Trophy, ChevronDown, ChevronUp, Play, SkipForward } from 'lucide-react';
+import { Award, Calendar, Dumbbell, Trophy, ChevronDown, ChevronUp, Play, SkipForward, PlayCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SquatIcon, BenchIcon, DeadliftIcon } from '@/components/icons/LiftIcons';
 import Link from 'next/link';
@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { truePRs, estimated1RMs, bestSession, loading } = useDashboardData(user?.uid);
   const { workouts, isLoading: workoutsLoading } = useWorkouts(user?.uid);
+  const { draft: draftWorkout } = useDraftWorkout(user?.uid);
   const [showWorkoutDetails, setShowWorkoutDetails] = useState(false);
   const [skipping, setSkipping] = useState(false);
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
@@ -186,6 +187,31 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {draftWorkout && (
+        <Card className="mb-4 border-2 border-orange-500/50 bg-gradient-to-br from-orange-500/10 to-orange-500/5">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
+                  <PlayCircle className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Séance en cours</p>
+                  <p className="text-xs text-muted-foreground">
+                    {draftWorkout.title || 'Workout'}
+                  </p>
+                </div>
+              </div>
+              <Button asChild size="sm">
+                <Link href="/dashboard/workouts/new">
+                  Reprendre
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         {renderPRCard('squat', 'Squat', SquatIcon)}

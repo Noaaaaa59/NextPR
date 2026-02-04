@@ -15,6 +15,8 @@ export interface Exercise {
   sets: Set[];
 }
 
+export type WorkoutStatus = 'draft' | 'completed';
+
 export interface Workout {
   id?: string;
   userId: string;
@@ -24,6 +26,20 @@ export interface Workout {
   duration?: number;
   notes?: string;
   completed: boolean;
+  status?: WorkoutStatus;
+}
+
+export interface DraftWorkout {
+  id?: string;
+  userId: string;
+  exercises: Exercise[];
+  title: string;
+  programWeek?: number;
+  programDay?: number;
+  totalWeeks?: number;
+  daysPerWeek?: number;
+  startedAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface Lift {

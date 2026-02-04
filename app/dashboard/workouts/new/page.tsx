@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createWorkout, createLift, updateUserProfile } from '@/lib/firebase/firestore';
+import { createWorkout, createLift, updateUserProfile, saveDraftWorkout, getDraftWorkout, deleteDraftWorkout } from '@/lib/firebase/firestore';
 import { calculateOneRepMax } from '@/lib/calculations/oneRepMax';
 import { Timestamp } from 'firebase/firestore';
-import { ArrowLeft, Plus, Trash2, Dumbbell, Wrench, Check, Target } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Dumbbell, Wrench, Check, Loader2 } from 'lucide-react';
 import { DayPrescription, ExercisePrescription, SetPrescription } from '@/lib/training/types';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 type ExerciseType = 'squat' | 'bench' | 'deadlift';
 
@@ -37,12 +38,94 @@ export default function NewWorkoutPage() {
   const [presetLoaded, setPresetLoaded] = useState(false);
   const [workoutTitle, setWorkoutTitle] = useState('');
   const [programInfo, setProgramInfo] = useState<{ week: number; day: number; totalWeeks: number; daysPerWeek: number } | null>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const draftStartedAt = useRef<Timestamp | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const exerciseLabels: Record<string, string> = {
     squat: 'Squat',
     bench: 'Bench Press',
     deadlift: 'Deadlift'
   };
+
+  const saveDraft = useCallback(async () => {
+    if (!user || exercises.length === 0) return;
+
+    setAutoSaving(true);
+    try {
+      await saveDraftWorkout(user.uid, {
+        exercises,
+        title: workoutTitle,
+        programWeek: programInfo?.week,
+        programDay: programInfo?.day,
+        totalWeeks: programInfo?.totalWeeks,
+        daysPerWeek: programInfo?.daysPerWeek,
+        startedAt: draftStartedAt.current || undefined,
+      });
+    } catch (error) {
+      console.error('Error saving draft:', error);
+    } finally {
+      setAutoSaving(false);
+    }
+  }, [user, exercises, workoutTitle, programInfo]);
+
+  const scheduleDraftSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveDraft();
+    }, 3000);
+  }, [saveDraft]);
+
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (!user || draftLoaded) return;
+
+      const presetParam = searchParams.get('preset');
+      if (presetParam) {
+        setDraftLoaded(true);
+        return;
+      }
+
+      try {
+        const draft = await getDraftWorkout(user.uid);
+        if (draft) {
+          setExercises(draft.exercises as ExerciseData[]);
+          setWorkoutTitle(draft.title);
+          draftStartedAt.current = draft.startedAt;
+          if (draft.programWeek && draft.programDay) {
+            setProgramInfo({
+              week: draft.programWeek,
+              day: draft.programDay,
+              totalWeeks: draft.totalWeeks || 4,
+              daysPerWeek: draft.daysPerWeek || 3,
+            });
+            setPresetLoaded(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading draft:', error);
+      }
+      setDraftLoaded(true);
+    };
+
+    loadDraft();
+  }, [user, draftLoaded, searchParams]);
+
+  useEffect(() => {
+    if (draftLoaded && exercises.length > 0) {
+      scheduleDraftSave();
+    }
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [exercises, workoutTitle, draftLoaded, scheduleDraftSave]);
 
   useEffect(() => {
     const presetParam = searchParams.get('preset');
@@ -213,6 +296,7 @@ export default function NewWorkoutPage() {
         await refreshUserData();
       }
 
+      await deleteDraftWorkout(user.uid);
       router.push('/dashboard');
     } catch (error) {
       console.error('Error saving workout:', error);
@@ -223,13 +307,34 @@ export default function NewWorkoutPage() {
   };
 
   const hasCompletedSets = exercises.some(ex => !ex.isToolExercise && ex.sets.some(s => s.completed));
+  const hasAnyData = exercises.length > 0;
+
+  const handleCancel = async () => {
+    if (hasAnyData) {
+      setShowCancelConfirm(true);
+    } else {
+      router.back();
+    }
+  };
+
+  const confirmCancel = async () => {
+    if (user) {
+      try {
+        await deleteDraftWorkout(user.uid);
+      } catch (error) {
+        console.error('Error deleting draft:', error);
+      }
+    }
+    setShowCancelConfirm(false);
+    router.push('/dashboard');
+  };
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => router.back()}
+          onClick={handleCancel}
           className="mb-4 hover:bg-accent"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -383,9 +488,15 @@ export default function NewWorkoutPage() {
         )}
 
         <div className="flex gap-4 sticky bottom-20 md:bottom-4 pt-4 bg-background/95 backdrop-blur-sm rounded-xl p-4 border-2">
+          {autoSaving && (
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Sauvegarde auto...
+            </div>
+          )}
           <Button
             variant="outline"
-            onClick={() => router.back()}
+            onClick={handleCancel}
             className="flex-1"
           >
             Annuler
@@ -399,6 +510,16 @@ export default function NewWorkoutPage() {
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showCancelConfirm}
+        onOpenChange={setShowCancelConfirm}
+        title="Annuler la séance ?"
+        description="Ta séance en cours sera supprimée. Cette action est irréversible."
+        confirmLabel="Annuler la séance"
+        cancelLabel="Continuer"
+        onConfirm={confirmCancel}
+      />
     </div>
   );
 }

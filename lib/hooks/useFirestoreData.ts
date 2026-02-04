@@ -1,8 +1,8 @@
 'use client';
 
 import useSWR from 'swr';
-import { getPersonalRecord, getBestEstimated1RM, getBestSBDSession, getWorkouts } from '@/lib/firebase/firestore';
-import { Lift, Workout } from '@/types/workout';
+import { getPersonalRecord, getBestEstimated1RM, getBestSBDSession, getWorkouts, getDraftWorkout } from '@/lib/firebase/firestore';
+import { Lift, Workout, DraftWorkout } from '@/types/workout';
 
 // Custom fetcher that handles Firebase calls
 const fetcher = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
@@ -103,6 +103,29 @@ export function useWorkouts(userId: string | undefined) {
 
   return {
     workouts: data || [],
+    isLoading,
+    error,
+    refresh: mutate,
+  };
+}
+
+// Hook for draft workout
+export function useDraftWorkout(userId: string | undefined) {
+  const { data, error, isLoading, mutate } = useSWR(
+    userId ? `draft-${userId}` : null,
+    async () => {
+      if (!userId) return null;
+      return getDraftWorkout(userId);
+    },
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 5000,
+    }
+  );
+
+  return {
+    draft: data,
     isLoading,
     error,
     refresh: mutate,

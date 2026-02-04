@@ -30,7 +30,10 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: PowerLift Pro - Complete powerlifting tracking app\n\n- Next.js 16 with App Router, React 19, TypeScript\n- Firebase Auth \\(Google Sign-In\\) + Cloud Firestore\n- Dashboard with PR tracking, workout logging, analytics\n- Strength standards calculations \\(Wilks, 1RM formulas\\)\n- Mobile-first responsive design with shadcn/ui\n- Configured for Vercel deployment \\(SSR enabled\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebFetch(domain:thefitness.wiki)",
+      "WebFetch(domain:www.jimwendler.com)",
+      "Bash(node --experimental-strip-types:*)"
     ]
   }
 }

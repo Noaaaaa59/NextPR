@@ -66,12 +66,21 @@ export async function saveDraftWorkout(userId: string, draft: Omit<DraftWorkout,
   }
 
   const now = Timestamp.now();
-  const draftData: Omit<DraftWorkout, 'id'> = {
-    ...draft,
+
+  // Build draft data, excluding undefined values (Firestore doesn't accept undefined)
+  const draftData: Record<string, any> = {
+    exercises: draft.exercises,
+    title: draft.title,
     userId,
     startedAt: draft.startedAt || existingStartedAt || now,
     updatedAt: now,
   };
+
+  // Only add optional fields if they have values
+  if (draft.programWeek !== undefined) draftData.programWeek = draft.programWeek;
+  if (draft.programDay !== undefined) draftData.programDay = draft.programDay;
+  if (draft.totalWeeks !== undefined) draftData.totalWeeks = draft.totalWeeks;
+  if (draft.daysPerWeek !== undefined) draftData.daysPerWeek = draft.daysPerWeek;
 
   await setDoc(draftRef, draftData);
   return 'current';

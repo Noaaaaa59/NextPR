@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { createWorkout, createLift, updateUserProfile, saveDraftWorkout, getDraftWorkout, deleteDraftWorkout } from '@/lib/firebase/firestore';
 import { calculateOneRepMax } from '@/lib/calculations/oneRepMax';
 import { Timestamp } from 'firebase/firestore';
+import { mutate } from 'swr';
 import { ArrowLeft, Plus, Trash2, Dumbbell, Wrench, Check, Loader2 } from 'lucide-react';
 import { DayPrescription, ExercisePrescription, SetPrescription } from '@/lib/training/types';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -397,6 +398,8 @@ export default function NewWorkoutPage() {
     if (user) {
       try {
         await deleteDraftWorkout(user.uid);
+        // Invalidate SWR cache so dashboard doesn't show "Reprendre"
+        mutate(`draft-${user.uid}`, null, false);
       } catch (error) {
         console.error('Error deleting draft:', error);
       }

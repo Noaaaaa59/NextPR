@@ -44,6 +44,7 @@ export default function NewWorkoutPage() {
   const draftStartedAt = useRef<Timestamp | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastPresetRef = useRef<string | null>(null);
+  const cancelledRef = useRef(false);
 
   const exerciseLabels: Record<string, string> = {
     squat: 'Squat',
@@ -52,7 +53,8 @@ export default function NewWorkoutPage() {
   };
 
   const saveDraft = useCallback(async (exercisesToSave: ExerciseData[], title: string, info: typeof programInfo) => {
-    if (!user || exercisesToSave.length === 0) return;
+    // Don't save if cancelled or no data
+    if (!user || exercisesToSave.length === 0 || cancelledRef.current) return;
 
     setAutoSaving(true);
     try {
@@ -383,6 +385,15 @@ export default function NewWorkoutPage() {
   };
 
   const confirmCancel = async () => {
+    // Prevent auto-save from re-creating the draft
+    cancelledRef.current = true;
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
     if (user) {
       try {
         await deleteDraftWorkout(user.uid);

@@ -87,7 +87,17 @@ export default function NewWorkoutPage() {
 
       const presetParam = searchParams.get('preset');
 
-      if (!presetParam) {
+      if (presetParam) {
+        // Starting a new workout from program - delete any existing draft
+        try {
+          await deleteDraftWorkout(user.uid);
+        } catch (error) {
+          // Ignore if no draft exists
+        }
+        // Reset the startedAt for the new workout
+        draftStartedAt.current = null;
+      } else {
+        // No preset - try to load existing draft
         try {
           const draft = await getDraftWorkout(user.uid);
           if (draft) {

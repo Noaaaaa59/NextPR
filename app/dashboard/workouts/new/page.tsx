@@ -43,6 +43,7 @@ export default function NewWorkoutPage() {
   const [autoSaving, setAutoSaving] = useState(false);
   const draftStartedAt = useRef<Timestamp | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPresetRef = useRef<string | null>(null);
 
   const exerciseLabels: Record<string, string> = {
     squat: 'Squat',
@@ -191,7 +192,10 @@ export default function NewWorkoutPage() {
     const totalWeeksParam = searchParams.get('totalWeeks');
     const daysPerWeekParam = searchParams.get('daysPerWeek');
 
-    if (presetParam && !presetLoaded) {
+    // Check if this is a new/different preset (not already loaded)
+    const isNewPreset = presetParam && presetParam !== lastPresetRef.current;
+
+    if (isNewPreset) {
       try {
         const dayData: DayPrescription = JSON.parse(decodeURIComponent(presetParam));
         setWorkoutTitle(dayData.name);
@@ -225,13 +229,17 @@ export default function NewWorkoutPage() {
           };
         });
 
+        // Reset startedAt for new workout
+        draftStartedAt.current = null;
+
         setExercises(presetExercises);
         setPresetLoaded(true);
+        lastPresetRef.current = presetParam;
       } catch (e) {
         console.error('Error parsing preset data:', e);
       }
     }
-  }, [searchParams, presetLoaded]);
+  }, [searchParams]);
 
   const updateSet = (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: string) => {
     const newExercises = [...exercises];

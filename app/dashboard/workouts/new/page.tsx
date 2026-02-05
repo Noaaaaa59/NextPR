@@ -213,14 +213,18 @@ export default function NewWorkoutPage() {
           });
         }
 
-        const presetExercises: ExerciseData[] = dayData.exercises.map((ex: ExercisePrescription) => {
+        // Filter out optional exercises (tool exercises and accessories)
+        const mainExercises = dayData.exercises.filter((ex: ExercisePrescription) =>
+          !ex.isToolExercise && ex.type !== 'accessory'
+        );
+
+        const presetExercises: ExerciseData[] = mainExercises.map((ex: ExercisePrescription) => {
           const isMainLift = ex.type === 'squat' || ex.type === 'bench' || ex.type === 'deadlift';
-          const isToolExercise = ex.isToolExercise || ex.type === 'accessory';
 
           return {
             type: isMainLift ? ex.type : ('accessory' as any),
             name: ex.name,
-            isToolExercise,
+            isToolExercise: false,
             sets: ex.sets.map((set: SetPrescription) => ({
               weight: set.weight || 0,
               reps: 0,

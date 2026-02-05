@@ -47,14 +47,12 @@ export default function DashboardPage() {
   const program = (hasPRs && userData)
     ? generateProgram({
         experience: experience as Experience,
-        strengthLevel,
         bodyweight,
         currentMaxes: { squat: squatMax, bench: benchMax, deadlift: deadliftMax },
         weeklyAvailability: programSettings.daysPerWeek,
         daysPerWeek: programSettings.daysPerWeek,
         durationWeeks: programSettings.durationWeeks,
         priorityLift: programSettings.priorityLift,
-        programType: programSettings.programType,
       })
     : null;
 

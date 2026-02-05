@@ -10,7 +10,7 @@ import { signOut } from '@/lib/firebase/auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar } from 'lucide-react';
-import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, ProgramType } from '@/types/user';
+import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift } from '@/types/user';
 import { getAllStandards } from '@/lib/calculations/standards';
 
 type Experience = 'beginner' | 'intermediate' | 'advanced';
@@ -31,7 +31,6 @@ export default function ProfilePage() {
   const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5>(userData?.programSettings?.daysPerWeek || 3);
   const [durationWeeks, setDurationWeeks] = useState<4 | 6>(userData?.programSettings?.durationWeeks || 4);
   const [priorityLift, setPriorityLift] = useState<PriorityLift>(userData?.programSettings?.priorityLift || 'squat');
-  const [programType, setProgramType] = useState<ProgramType>(userData?.programSettings?.programType || 'auto');
 
   const handleSignOut = async () => {
     await signOut();
@@ -56,7 +55,7 @@ export default function ProfilePage() {
           daysPerWeek,
           durationWeeks,
           priorityLift,
-          programType,
+          programType: '531',
         },
       });
       setIsEditing(false);
@@ -77,7 +76,6 @@ export default function ProfilePage() {
     setDaysPerWeek(userData?.programSettings?.daysPerWeek || 3);
     setDurationWeeks(userData?.programSettings?.durationWeeks || 4);
     setPriorityLift(userData?.programSettings?.priorityLift || 'squat');
-    setProgramType(userData?.programSettings?.programType || 'auto');
     setIsEditing(false);
   };
 
@@ -305,43 +303,14 @@ export default function ProfilePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-destructive font-medium">Type de programme</Label>
-              {isEditing ? (
-                <div className="space-y-2">
-                  {([
-                    { value: 'auto' as const, label: 'Auto', desc: 'Sélection automatique selon ton niveau' },
-                    { value: 'linear' as const, label: 'Linéaire', desc: 'Simple et efficace. Volume → Intensité → Test PR' },
-                    { value: '531' as const, label: '5/3/1', desc: 'Wendler. Training Max (90%) + BBB. Progression lente mais sûre' },
-                    { value: 'hypertrophy' as const, label: 'Hypertrophie', desc: 'Volume élevé (4x10). Focus sur la masse musculaire' },
-                    { value: 'block' as const, label: 'Blocs', desc: 'Avancé. Accumulation → Intensification → Peak (8 sem)' },
-                  ]).map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setProgramType(opt.value)}
-                      className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                        programType === opt.value
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted border-border'
-                      }`}
-                    >
-                      <div className="font-medium">{opt.label}</div>
-                      <div className={`text-xs ${programType === opt.value ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                        {opt.desc}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {userData?.programSettings?.programType === '531' ? '5/3/1 (Wendler)' :
-                   userData?.programSettings?.programType === 'linear' ? 'Linéaire' :
-                   userData?.programSettings?.programType === 'hypertrophy' ? 'Hypertrophie' :
-                   userData?.programSettings?.programType === 'block' ? 'Blocs' :
-                   'Automatique'}
-                </p>
-              )}
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm">
+                <span className="text-muted-foreground">Méthode : </span>
+                <span className="font-bold text-primary">5/3/1 de Jim Wendler</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Training Max (90% du 1RM) + BBB (Boring But Big)
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -9,10 +9,14 @@ import { Label } from '@/components/ui/label';
 import { signOut } from '@/lib/firebase/auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar } from 'lucide-react';
+import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar, Trophy, Video, Star } from 'lucide-react';
 import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, Theme } from '@/types/user';
 import { Palette } from 'lucide-react';
 import { getAllStandards } from '@/lib/calculations/standards';
+import { useDashboardData } from '@/lib/hooks/useFirestoreData';
+import { SquatIcon, BenchIcon, DeadliftIcon } from '@/components/icons/LiftIcons';
+import { VideoUpload } from '@/components/VideoUpload';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 type Experience = 'beginner' | 'intermediate' | 'advanced';
 type WeightUnit = 'kg' | 'lbs';
@@ -20,9 +24,11 @@ type WeightUnit = 'kg' | 'lbs';
 export default function ProfilePage() {
   const { user, userData } = useAuth();
   const router = useRouter();
+  const { truePRs, loading: prsLoading, refreshPRs } = useDashboardData(user?.uid);
 
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [videoUploadLift, setVideoUploadLift] = useState<'squat' | 'bench' | 'deadlift' | null>(null);
 
   const [displayName, setDisplayName] = useState(userData?.displayName || '');
   const [bodyweight, setBodyweight] = useState(userData?.bodyweight?.toString() || '');
@@ -464,6 +470,119 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         )}
+
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Mes Records Personnels</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Ajoute une vidéo à tes PRs pour que la communauté puisse évaluer ta forme !
+            </p>
+
+            {prsLoading ? (
+              <div className="text-center py-4 text-muted-foreground">Chargement...</div>
+            ) : (
+              <div className="space-y-3">
+                {(['squat', 'bench', 'deadlift'] as const).map((exercise) => {
+                  const pr = truePRs[exercise];
+                  const Icon = exercise === 'squat' ? SquatIcon : exercise === 'bench' ? BenchIcon : DeadliftIcon;
+                  const label = exercise === 'squat' ? 'Squat' : exercise === 'bench' ? 'Bench' : 'Deadlift';
+
+                  return (
+                    <div
+                      key={exercise}
+                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{label}</p>
+                          {pr ? (
+                            <p className="text-xs text-muted-foreground">
+                              {pr.weight} kg × {pr.reps}
+                              {pr.averageRating && (
+                                <span className="ml-2 text-yellow-500">
+                                  <Star className="h-3 w-3 inline fill-current" /> {pr.averageRating.toFixed(1)}
+                                </span>
+                              )}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Pas encore de PR</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {pr && (
+                        <div className="flex items-center gap-2">
+                          {pr.videoUrl ? (
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={pr.videoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary flex items-center gap-1 hover:underline"
+                              >
+                                <Video className="h-3.5 w-3.5" />
+                                Voir
+                              </a>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setVideoUploadLift(exercise)}
+                              >
+                                Changer
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setVideoUploadLift(exercise)}
+                            >
+                              <Video className="h-3.5 w-3.5 mr-1" />
+                              Ajouter vidéo
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Dialog open={videoUploadLift !== null} onOpenChange={(open) => !open && setVideoUploadLift(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="capitalize">
+                Ajouter une vidéo - {videoUploadLift}
+              </DialogTitle>
+            </DialogHeader>
+            {videoUploadLift && user && truePRs[videoUploadLift] && (
+              <VideoUpload
+                userId={user.uid}
+                liftId={truePRs[videoUploadLift]!.id!}
+                existingVideoUrl={truePRs[videoUploadLift]!.videoUrl}
+                onUploadComplete={() => {
+                  refreshPRs();
+                  setVideoUploadLift(null);
+                }}
+                onDelete={() => {
+                  refreshPRs();
+                  setVideoUploadLift(null);
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         <Card className="border-destructive/30">
           <CardHeader className="pb-3">

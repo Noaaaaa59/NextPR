@@ -53,4 +53,16 @@ export interface Lift {
   date: Timestamp;
   notes?: string;
   videoUrl?: string;
+  averageRating?: number;
+  ratingCount?: number;
+}
+
+export interface FormRating {
+  id?: string;
+  liftId: string;
+  liftOwnerId: string;
+  raterId: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  comment?: string;
+  createdAt: Timestamp;
 }

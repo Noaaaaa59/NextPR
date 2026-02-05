@@ -13,9 +13,11 @@ import {
   limit,
   DocumentData,
   serverTimestamp,
+  runTransaction,
 } from 'firebase/firestore';
-import { db } from './config';
-import { Workout, Lift, DraftWorkout } from '@/types/workout';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from './config';
+import { Workout, Lift, DraftWorkout, FormRating } from '@/types/workout';
 import { Program } from '@/types/program';
 import { User } from '@/types/user';
 import { calculateOneRepMax } from '../calculations/oneRepMax';
@@ -488,4 +490,145 @@ export async function completeOnboarding(
   });
 
   await saveInitialPRs(userId, prs);
+}
+
+// Video Upload Functions
+export async function uploadLiftVideo(
+  userId: string,
+  liftId: string,
+  file: File
+): Promise<string> {
+  const videoRef = ref(storage, `users/${userId}/lifts/${liftId}/video`);
+  await uploadBytes(videoRef, file);
+  const downloadUrl = await getDownloadURL(videoRef);
+
+  // Update the lift with the video URL
+  const liftRef = doc(db, 'users', userId, 'lifts', liftId);
+  await updateDoc(liftRef, { videoUrl: downloadUrl });
+
+  return downloadUrl;
+}
+
+export async function deleteLiftVideo(userId: string, liftId: string): Promise<void> {
+  const videoRef = ref(storage, `users/${userId}/lifts/${liftId}/video`);
+  try {
+    await deleteObject(videoRef);
+  } catch (e) {
+    // Video might not exist, ignore
+  }
+
+  const liftRef = doc(db, 'users', userId, 'lifts', liftId);
+  await updateDoc(liftRef, { videoUrl: null, averageRating: null, ratingCount: null });
+}
+
+// Form Rating Functions
+export async function addFormRating(
+  liftOwnerId: string,
+  liftId: string,
+  raterId: string,
+  rating: 1 | 2 | 3 | 4 | 5,
+  comment?: string
+): Promise<string> {
+  const ratingsRef = collection(db, 'users', liftOwnerId, 'lifts', liftId, 'ratings');
+
+  // Check if user already rated this lift
+  const existingQuery = query(ratingsRef, where('raterId', '==', raterId), limit(1));
+  const existingSnap = await getDocs(existingQuery);
+
+  if (!existingSnap.empty) {
+    // Update existing rating
+    const existingRatingRef = existingSnap.docs[0].ref;
+    await updateDoc(existingRatingRef, {
+      rating,
+      comment: comment || null,
+      createdAt: Timestamp.now(),
+    });
+    await updateLiftAverageRating(liftOwnerId, liftId);
+    return existingSnap.docs[0].id;
+  }
+
+  // Create new rating
+  const ratingData: Omit<FormRating, 'id'> = {
+    liftId,
+    liftOwnerId,
+    raterId,
+    rating,
+    comment,
+    createdAt: Timestamp.now(),
+  };
+
+  const docRef = await addDoc(ratingsRef, ratingData);
+  await updateLiftAverageRating(liftOwnerId, liftId);
+  return docRef.id;
+}
+
+export async function getFormRatings(liftOwnerId: string, liftId: string): Promise<FormRating[]> {
+  const ratingsRef = collection(db, 'users', liftOwnerId, 'lifts', liftId, 'ratings');
+  const q = query(ratingsRef, orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as FormRating[];
+}
+
+export async function getUserRating(
+  liftOwnerId: string,
+  liftId: string,
+  raterId: string
+): Promise<FormRating | null> {
+  const ratingsRef = collection(db, 'users', liftOwnerId, 'lifts', liftId, 'ratings');
+  const q = query(ratingsRef, where('raterId', '==', raterId), limit(1));
+  const snapshot = await getDocs(q);
+
+  if (snapshot.empty) return null;
+
+  return {
+    id: snapshot.docs[0].id,
+    ...snapshot.docs[0].data(),
+  } as FormRating;
+}
+
+async function updateLiftAverageRating(liftOwnerId: string, liftId: string): Promise<void> {
+  const ratingsRef = collection(db, 'users', liftOwnerId, 'lifts', liftId, 'ratings');
+  const snapshot = await getDocs(ratingsRef);
+
+  if (snapshot.empty) {
+    const liftRef = doc(db, 'users', liftOwnerId, 'lifts', liftId);
+    await updateDoc(liftRef, { averageRating: null, ratingCount: 0 });
+    return;
+  }
+
+  let total = 0;
+  snapshot.docs.forEach((doc) => {
+    total += doc.data().rating;
+  });
+
+  const averageRating = Math.round((total / snapshot.docs.length) * 10) / 10;
+  const ratingCount = snapshot.docs.length;
+
+  const liftRef = doc(db, 'users', liftOwnerId, 'lifts', liftId);
+  await updateDoc(liftRef, { averageRating, ratingCount });
+}
+
+export async function getLift(userId: string, liftId: string): Promise<Lift | null> {
+  const liftRef = doc(db, 'users', userId, 'lifts', liftId);
+  const snapshot = await getDoc(liftRef);
+
+  if (!snapshot.exists()) return null;
+
+  return {
+    id: snapshot.id,
+    ...snapshot.data(),
+  } as Lift;
+}
+
+export async function updateLift(
+  userId: string,
+  liftId: string,
+  data: Partial<Lift>
+): Promise<void> {
+  const liftRef = doc(db, 'users', userId, 'lifts', liftId);
+  await updateDoc(liftRef, data as DocumentData);
 }

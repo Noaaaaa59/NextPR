@@ -306,6 +306,15 @@ export default function NewWorkoutPage() {
     const mainLifts = exercises.filter(ex => !ex.isToolExercise && ex.sets.some(s => s.completed));
     if (!user || mainLifts.length === 0) return;
 
+    // Prevent auto-save from re-creating the draft
+    cancelledRef.current = true;
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
     setSaving(true);
     try {
       const workoutExercises = mainLifts.map(ex => ({
@@ -366,6 +375,8 @@ export default function NewWorkoutPage() {
       }
 
       await deleteDraftWorkout(user.uid);
+      // Invalidate SWR cache so dashboard doesn't show "Reprendre"
+      mutate(`draft-${user.uid}`, null, false);
       router.push('/dashboard');
     } catch (error) {
       console.error('Error saving workout:', error);

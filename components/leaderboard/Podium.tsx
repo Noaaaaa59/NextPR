@@ -1,11 +1,20 @@
 'use client';
 
-import { Crown } from 'lucide-react';
+import { Crown, Video, Star } from 'lucide-react';
+import { LiftVideoRating } from '@/components/LiftVideoRating';
 
 interface PodiumEntry {
   displayName: string;
   value: number;
   photoURL?: string;
+  // Video data
+  oderId?: string;
+  liftId?: string;
+  videoUrl?: string;
+  averageRating?: number;
+  ratingCount?: number;
+  reps?: number;
+  exerciseName?: string;
 }
 
 interface PodiumProps {
@@ -46,6 +55,21 @@ function PodiumStep({
             <p className="text-sm font-bold text-destructive">
               {entry.value} kg
             </p>
+            {entry.videoUrl && entry.liftId && entry.oderId && (
+              <div className="mt-1">
+                <LiftVideoRating
+                  liftOwnerId={entry.oderId}
+                  liftId={entry.liftId}
+                  videoUrl={entry.videoUrl}
+                  averageRating={entry.averageRating}
+                  ratingCount={entry.ratingCount}
+                  ownerName={entry.displayName}
+                  exerciseName={entry.exerciseName || ''}
+                  weight={entry.value}
+                  reps={entry.reps || 1}
+                />
+              </div>
+            )}
           </div>
         </>
       ) : (

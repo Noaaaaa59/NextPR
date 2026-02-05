@@ -84,10 +84,36 @@ export default function LeaderboardPage() {
 
   const getTop3 = (sortBy: 'total' | 'squat' | 'bench' | 'deadlift') => {
     const sorted = [...filteredLeaderboard].sort((a, b) => b[sortBy] - a[sortBy]);
+
+    const getPRData = (entry: LeaderboardEntry, exercise: string) => {
+      const prKey = `${exercise}PR` as 'squatPR' | 'benchPR' | 'deadliftPR';
+      const pr = entry[prKey];
+      return {
+        displayName: entry.displayName,
+        value: entry[sortBy as keyof LeaderboardEntry] as number,
+        photoURL: entry.photoURL,
+        oderId: entry.userId,
+        liftId: pr?.id,
+        videoUrl: pr?.videoUrl,
+        averageRating: pr?.averageRating,
+        ratingCount: pr?.ratingCount,
+        reps: pr?.reps,
+        exerciseName: exercise,
+      };
+    };
+
+    if (sortBy === 'total') {
+      return [
+        sorted[0] ? { displayName: sorted[0].displayName, value: sorted[0].total, photoURL: sorted[0].photoURL } : null,
+        sorted[1] ? { displayName: sorted[1].displayName, value: sorted[1].total, photoURL: sorted[1].photoURL } : null,
+        sorted[2] ? { displayName: sorted[2].displayName, value: sorted[2].total, photoURL: sorted[2].photoURL } : null,
+      ] as [any, any, any];
+    }
+
     return [
-      sorted[0] ? { displayName: sorted[0].displayName, value: sorted[0][sortBy], photoURL: sorted[0].photoURL } : null,
-      sorted[1] ? { displayName: sorted[1].displayName, value: sorted[1][sortBy], photoURL: sorted[1].photoURL } : null,
-      sorted[2] ? { displayName: sorted[2].displayName, value: sorted[2][sortBy], photoURL: sorted[2].photoURL } : null,
+      sorted[0] ? getPRData(sorted[0], sortBy) : null,
+      sorted[1] ? getPRData(sorted[1], sortBy) : null,
+      sorted[2] ? getPRData(sorted[2], sortBy) : null,
     ] as [any, any, any];
   };
 

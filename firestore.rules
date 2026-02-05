@@ -14,6 +14,14 @@ service cloud.firestore {
         allow read: if request.auth != null;
         // Seul le propriétaire peut écrire
         allow write: if request.auth != null && request.auth.uid == userId;
+
+        // Ratings: tout utilisateur authentifié peut noter
+        match /ratings/{ratingId} {
+          allow read: if request.auth != null;
+          // Peut créer une note, ou modifier/supprimer sa propre note
+          allow create: if request.auth != null;
+          allow update, delete: if request.auth != null && request.auth.uid == resource.data.raterId;
+        }
       }
 
       match /programs/{programId} {

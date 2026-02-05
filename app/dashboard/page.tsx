@@ -64,10 +64,10 @@ export default function DashboardPage() {
   const nextDay = currentWeek?.days[currentDayIndex];
 
   const handleLaunchWorkout = (day: DayPrescription, weekNum: number, dayNum: number) => {
-    const workoutData = encodeURIComponent(JSON.stringify(day));
     const totalWeeks = program?.program.weeks.length || 1;
     const daysPerWeek = currentWeek?.days.length || 3;
-    router.push(`/dashboard/workouts/new?preset=${workoutData}&week=${weekNum}&day=${dayNum}&totalWeeks=${totalWeeks}&daysPerWeek=${daysPerWeek}`);
+    sessionStorage.setItem('pendingWorkoutPreset', JSON.stringify(day));
+    router.push(`/dashboard/workouts/new?preset=session&week=${weekNum}&day=${dayNum}&totalWeeks=${totalWeeks}&daysPerWeek=${daysPerWeek}`);
   };
 
   const handleSkipDay = async () => {

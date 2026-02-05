@@ -201,7 +201,15 @@ export default function NewWorkoutPage() {
 
     if (isNewPreset) {
       try {
-        const dayData: DayPrescription = JSON.parse(decodeURIComponent(presetParam));
+        let rawData: string | null;
+        if (presetParam === 'session') {
+          rawData = sessionStorage.getItem('pendingWorkoutPreset');
+          sessionStorage.removeItem('pendingWorkoutPreset');
+        } else {
+          rawData = decodeURIComponent(presetParam);
+        }
+        if (!rawData) return;
+        const dayData: DayPrescription = JSON.parse(rawData);
         setWorkoutTitle(dayData.name);
 
         if (weekParam && dayParam && totalWeeksParam && daysPerWeekParam) {

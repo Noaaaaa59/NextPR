@@ -72,10 +72,10 @@ export default function ProgramsPage() {
   const loading = prsLoading;
 
   const handleLaunchWorkout = (day: DayPrescription, weekNumber: number, dayNumber: number) => {
-    const workoutData = encodeURIComponent(JSON.stringify(day));
     const totalWeeks = recommendation?.program.weeks.length || 1;
     const daysPerWeek = recommendation?.program.weeks[0]?.days.length || 3;
-    router.push(`/dashboard/workouts/new?preset=${workoutData}&week=${weekNumber}&day=${dayNumber}&totalWeeks=${totalWeeks}&daysPerWeek=${daysPerWeek}`);
+    sessionStorage.setItem('pendingWorkoutPreset', JSON.stringify(day));
+    router.push(`/dashboard/workouts/new?preset=session&week=${weekNumber}&day=${dayNumber}&totalWeeks=${totalWeeks}&daysPerWeek=${daysPerWeek}`);
   };
 
   const handleSkipDay = async () => {

@@ -11,6 +11,7 @@ import {
 import {
   WEEK_531,
   WEEK_531_EXTENDED,
+  calculateWorkingWeight,
   calculateWorkingWeight531,
 } from './percentages';
 
@@ -79,6 +80,7 @@ interface WeekSetsResult {
   bbb?: SetPrescription[];
   useTrainingMax?: boolean;
   isDeload?: boolean;
+  isTestWeek?: boolean;
 }
 
 function getWeekSets(weekNumber: number, duration: number = 4): WeekSetsResult {
@@ -90,11 +92,11 @@ function getWeekSets(weekNumber: number, duration: number = 4): WeekSetsResult {
 
 function getWeekName(weekNumber: number, duration: number): string {
   if (duration === 4) {
-    const names = ['5s (Volume)', '3s (Force)', '5/3/1 (Intensité)', 'Déload 😴'];
+    const names = ['5s (Volume)', '3s (Force)', '5/3/1 (Intensité)', 'TEST PR 🎯'];
     return `Semaine ${weekNumber} - ${names[weekNumber - 1] || '5/3/1'}`;
   }
   if (duration === 6) {
-    const names = ['5s (Volume)', '3s (Force)', '5/3/1', '5s (Cycle 2)', '3s (Cycle 2)', '5/3/1 (Final)'];
+    const names = ['5s (Volume)', '3s (Force)', '5/3/1', '5s (Cycle 2)', '3s (Cycle 2)', 'TEST PR 🎯'];
     return `Semaine ${weekNumber} - ${names[weekNumber - 1] || '5/3/1'}`;
   }
   return `Semaine ${weekNumber}`;
@@ -102,18 +104,18 @@ function getWeekName(weekNumber: number, duration: number): string {
 
 function getWeekFocus(weekNumber: number, duration: number): string {
   const focus4 = [
-    '3x5 @ 65-85% TM - AMRAP sur le dernier set. Construire le volume.',
-    '3x3 @ 70-90% TM - AMRAP sur le dernier set. Force maximale.',
-    '5/3/1 @ 75-95% TM - AMRAP sur le dernier set. Semaine la plus intense.',
-    '😴 Déload @ 40-60% TM. Récupération active pour le prochain cycle.',
+    '3x5 @ 65-85% - AMRAP sur le dernier set. Construire le volume.',
+    '3x3 @ 70-90% - AMRAP sur le dernier set. Force maximale.',
+    '5/3/1 @ 75-95% - AMRAP sur le dernier set. Semaine la plus intense.',
+    '🎯 TEST DE PR - Singles montants jusqu\'à 102.5% pour battre ton record!',
   ];
   const focus6 = [
-    '3x5 @ 65-85% TM - AMRAP sur le dernier set. Début du cycle 1.',
-    '3x3 @ 70-90% TM - AMRAP sur le dernier set. Force maximale.',
-    '5/3/1 @ 75-95% TM - AMRAP sur le dernier set. Fin du cycle 1.',
-    '3x5 @ 65-85% TM - AMRAP sur le dernier set. Début du cycle 2 (+2.5/5kg TM).',
-    '3x3 @ 70-90% TM - AMRAP sur le dernier set. Force maximale.',
-    '5/3/1 @ 75-95% TM - AMRAP sur le dernier set. Fin du programme.',
+    '3x5 @ 65-85% - AMRAP sur le dernier set. Début du cycle 1.',
+    '3x3 @ 70-90% - AMRAP sur le dernier set. Force maximale.',
+    '5/3/1 @ 75-95% - AMRAP sur le dernier set. Fin du cycle 1.',
+    '3x5 @ 65-85% - AMRAP sur le dernier set. Début du cycle 2.',
+    '3x3 @ 70-90% - AMRAP sur le dernier set. Force maximale.',
+    '🎯 TEST DE PR - Singles montants jusqu\'à 102.5% pour battre ton record!',
   ];
   return duration === 6 ? focus6[weekNumber - 1] || '' : focus4[weekNumber - 1] || '';
 }
@@ -132,12 +134,25 @@ function generateDay(
     deadlift: 'Deadlift',
   };
 
+  // Use actual 1RM for test weeks, otherwise use training max calculation
+  const calcWeight = weekSets.useTrainingMax !== false
+    ? calculateWorkingWeight531
+    : calculateWorkingWeight;
+
+  // PR increment: +2.5kg for bench, +5kg for squat/deadlift
+  const getPRWeight = (lift: Lift, max: number) => {
+    const increment = lift === 'bench' ? 2.5 : 5;
+    return max + increment;
+  };
+
   const primaryExercise: ExercisePrescription = {
     name: liftNames[primaryLift],
     type: primaryLift,
     sets: weekSets.heavy.map((set) => ({
       ...set,
-      weight: calculateWorkingWeight531(maxes[primaryLift], set.percentage),
+      weight: set.percentage === 0
+        ? getPRWeight(primaryLift, maxes[primaryLift]) // PR attempt
+        : calcWeight(maxes[primaryLift], set.percentage),
     })),
   };
 
@@ -146,14 +161,16 @@ function generateDay(
     type: secondaryLift,
     sets: weekSets.light.map((set) => ({
       ...set,
-      weight: calculateWorkingWeight531(maxes[secondaryLift], set.percentage),
+      weight: set.percentage === 0
+        ? getPRWeight(secondaryLift, maxes[secondaryLift])
+        : calcWeight(maxes[secondaryLift], set.percentage),
     })),
   };
 
   const exercises: ExercisePrescription[] = [primaryExercise, secondaryExercise];
 
-  // Ajouter BBB (Boring But Big) si disponible et pas en déload
-  if (weekSets.bbb && !isDeload) {
+  // Ajouter BBB (Boring But Big) si disponible et pas en déload/test
+  if (weekSets.bbb && !isDeload && !weekSets.isTestWeek) {
     const bbbExercise: ExercisePrescription = {
       name: `${liftNames[primaryLift]} (BBB)`,
       type: primaryLift,
@@ -162,7 +179,7 @@ function generateDay(
         ...set,
         weight: calculateWorkingWeight531(maxes[primaryLift], set.percentage),
       })),
-      notes: 'Boring But Big - 5x10 @ 50% TM',
+      notes: 'Boring But Big - 5x10 @ 50%',
     };
     exercises.push(bbbExercise);
   }

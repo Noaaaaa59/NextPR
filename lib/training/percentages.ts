@@ -3,7 +3,7 @@ import { SetPrescription } from './types';
 // 5/3/1 Jim Wendler - Programme classique en 4 semaines
 // Basé sur le Training Max (TM = 90% du 1RM réel)
 // Source: https://www.powerliftingmag.fr/comment-etre-plus-fort-la-methode-531-de-jim-wendler/
-export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPrescription[]; bbb?: SetPrescription[]; useTrainingMax?: boolean; isDeload?: boolean }> = {
+export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPrescription[]; bbb?: SetPrescription[]; useTrainingMax?: boolean; isDeload?: boolean; isTestWeek?: boolean }> = {
   // Semaine 1 - "5s Week" (basé sur TM)
   1: {
     heavy: [
@@ -67,24 +67,26 @@ export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPres
     ],
     useTrainingMax: true,
   },
-  // Semaine 4 - "Deload Week" (basé sur TM) - récupération
+  // Semaine 4 - "TEST PR" - tentative de nouveau record (+2.5kg bench, +5kg squat/deadlift)
   4: {
     heavy: [
-      { reps: 5, percentage: 40 },
-      { reps: 5, percentage: 50 },
-      { reps: 5, percentage: 60 },
+      { reps: 3, percentage: 70 },
+      { reps: 2, percentage: 80 },
+      { reps: 1, percentage: 90 },
+      { reps: 1, percentage: 100 },
+      { reps: 1, percentage: 0, amrap: true }, // 0% = PR attempt, weight calculated separately
     ],
     light: [
-      { reps: 5, percentage: 40 },
-      { reps: 5, percentage: 40 },
+      { reps: 3, percentage: 50 },
+      { reps: 3, percentage: 50 },
     ],
-    useTrainingMax: true,
-    isDeload: true,
+    useTrainingMax: false,
+    isTestWeek: true,
   },
 };
 
 // 5/3/1 étendu sur 6 semaines - 2 cycles de 3 semaines + déload final
-export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light: SetPrescription[]; bbb?: SetPrescription[]; useTrainingMax?: boolean; isDeload?: boolean }> = {
+export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light: SetPrescription[]; bbb?: SetPrescription[]; useTrainingMax?: boolean; isDeload?: boolean; isTestWeek?: boolean }> = {
   // Cycle 1 - Semaine 1 "5s Week"
   1: {
     heavy: [
@@ -190,19 +192,21 @@ export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light
     ],
     useTrainingMax: true,
   },
-  // Cycle 2 - Semaine 6 "5/3/1 Week + Deload"
+  // Semaine 6 - "TEST PR" - tentative de nouveau record (+2.5kg bench, +5kg squat/deadlift)
   6: {
     heavy: [
-      { reps: 5, percentage: 75 },
-      { reps: 3, percentage: 85 },
-      { reps: 1, percentage: 95, amrap: true },
+      { reps: 3, percentage: 70 },
+      { reps: 2, percentage: 80 },
+      { reps: 1, percentage: 90 },
+      { reps: 1, percentage: 100 },
+      { reps: 1, percentage: 0, amrap: true }, // 0% = PR attempt, weight calculated separately
     ],
     light: [
-      { reps: 5, percentage: 60 },
-      { reps: 5, percentage: 60 },
-      { reps: 5, percentage: 60 },
+      { reps: 3, percentage: 50 },
+      { reps: 3, percentage: 50 },
     ],
-    useTrainingMax: true,
+    useTrainingMax: false,
+    isTestWeek: true,
   },
 };
 

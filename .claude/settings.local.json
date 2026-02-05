@@ -34,7 +34,8 @@
       "WebFetch(domain:thefitness.wiki)",
       "WebFetch(domain:www.jimwendler.com)",
       "Bash(node --experimental-strip-types:*)",
-      "Bash(firebase deploy:*)"
+      "Bash(firebase deploy:*)",
+      "WebFetch(domain:www.powerliftingmag.fr)"
     ]
   }
 }

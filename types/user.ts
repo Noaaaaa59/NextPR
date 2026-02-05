@@ -2,7 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 
 export type WeightUnit = 'kg' | 'lbs';
 export type Experience = 'beginner' | 'intermediate' | 'advanced' | 'elite';
-export type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark' | 'forest' | 'rose' | 'ocean' | 'sunset';
 export type Gender = 'male' | 'female';
 
 export const WEIGHT_CATEGORIES_MALE = ['59', '66', '74', '83', '93', '105', '120', '120+'] as const;

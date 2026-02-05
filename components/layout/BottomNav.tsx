@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Home, Dumbbell, BarChart3, Users, Calendar } from 'lucide-react';
+import { Home, Dumbbell, BarChart3, Users, Calculator } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Accueil', icon: Home },
   { href: '/dashboard/workouts', label: 'Workouts', icon: Dumbbell },
-  { href: '/dashboard/programs', label: 'Programme', icon: Calendar },
+  { href: '/dashboard/tools', label: 'Outils', icon: Calculator },
   { href: '/dashboard/analytics', label: 'Stats', icon: BarChart3 },
   { href: '/dashboard/leaderboard', label: 'Top', icon: Users },
 ];

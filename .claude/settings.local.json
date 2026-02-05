@@ -35,7 +35,10 @@
       "WebFetch(domain:www.jimwendler.com)",
       "Bash(node --experimental-strip-types:*)",
       "Bash(firebase deploy:*)",
-      "WebFetch(domain:www.powerliftingmag.fr)"
+      "WebFetch(domain:www.powerliftingmag.fr)",
+      "WebFetch(domain:www.garagegymreviews.com)",
+      "WebFetch(domain:www.social.plus)",
+      "Bash(ls:*)"
     ]
   }
 }

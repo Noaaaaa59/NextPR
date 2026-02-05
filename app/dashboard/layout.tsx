@@ -8,6 +8,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { MobileHeader } from '@/components/layout/MobileHeader';
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 export default function DashboardLayout({
   children,
@@ -49,15 +50,17 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <MobileHeader />
-      <Navbar />
-      <main className="pb-20 md:pb-0">{children}</main>
-      <BottomNav />
-      <OnboardingModal
-        open={showOnboarding}
-        onComplete={handleOnboardingComplete}
-      />
-    </div>
+    <ThemeProvider>
+      <div className="min-h-screen bg-background">
+        <MobileHeader />
+        <Navbar />
+        <main className="pb-20 md:pb-0">{children}</main>
+        <BottomNav />
+        <OnboardingModal
+          open={showOnboarding}
+          onComplete={handleOnboardingComplete}
+        />
+      </div>
+    </ThemeProvider>
   );
 }

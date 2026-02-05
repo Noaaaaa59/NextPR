@@ -10,7 +10,8 @@ import { signOut } from '@/lib/firebase/auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar } from 'lucide-react';
-import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift } from '@/types/user';
+import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, Theme } from '@/types/user';
+import { Palette } from 'lucide-react';
 import { getAllStandards } from '@/lib/calculations/standards';
 
 type Experience = 'beginner' | 'intermediate' | 'advanced';
@@ -31,6 +32,7 @@ export default function ProfilePage() {
   const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5>(userData?.programSettings?.daysPerWeek || 3);
   const [durationWeeks, setDurationWeeks] = useState<4 | 6>(userData?.programSettings?.durationWeeks || 4);
   const [priorityLift, setPriorityLift] = useState<PriorityLift>(userData?.programSettings?.priorityLift || 'squat');
+  const [theme, setTheme] = useState<Theme>(userData?.preferences?.theme || 'dark');
 
   const handleSignOut = async () => {
     await signOut();
@@ -49,7 +51,7 @@ export default function ProfilePage() {
         experience: experience,
         preferences: {
           weightUnit: weightUnit,
-          theme: userData?.preferences?.theme || 'light',
+          theme: theme,
         },
         programSettings: {
           daysPerWeek,
@@ -76,6 +78,7 @@ export default function ProfilePage() {
     setDaysPerWeek(userData?.programSettings?.daysPerWeek || 3);
     setDurationWeeks(userData?.programSettings?.durationWeeks || 4);
     setPriorityLift(userData?.programSettings?.priorityLift || 'squat');
+    setTheme(userData?.preferences?.theme || 'dark');
     setIsEditing(false);
   };
 
@@ -291,6 +294,48 @@ export default function ProfilePage() {
                   </p>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1 text-destructive font-medium">
+                <Palette className="h-3 w-3" />
+                Thème
+              </Label>
+              {isEditing ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 'light' as const, label: 'Clair', color: 'bg-gray-100' },
+                    { value: 'dark' as const, label: 'Sombre', color: 'bg-gray-800' },
+                    { value: 'forest' as const, label: 'Forêt', color: 'bg-green-700' },
+                    { value: 'rose' as const, label: 'Rose', color: 'bg-pink-500' },
+                    { value: 'ocean' as const, label: 'Océan', color: 'bg-blue-600' },
+                    { value: 'sunset' as const, label: 'Sunset', color: 'bg-orange-500' },
+                  ]).map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setTheme(t.value)}
+                      className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                        theme === t.value
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border'
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full ${t.color}`} />
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm font-medium py-2">
+                  {theme === 'light' ? 'Clair' :
+                   theme === 'dark' ? 'Sombre' :
+                   theme === 'forest' ? 'Forêt' :
+                   theme === 'rose' ? 'Rose' :
+                   theme === 'ocean' ? 'Océan' :
+                   theme === 'sunset' ? 'Sunset' : 'Sombre'}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

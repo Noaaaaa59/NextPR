@@ -12,8 +12,13 @@ service cloud.firestore {
       match /lifts/{liftId} {
         // Tout utilisateur authentifié peut lire les lifts (pour le leaderboard)
         allow read: if request.auth != null;
-        // Seul le propriétaire peut écrire
-        allow write: if request.auth != null && request.auth.uid == userId;
+        // Le propriétaire peut tout modifier
+        allow create, delete: if request.auth != null && request.auth.uid == userId;
+        // Permettre au propriétaire de tout modifier, ou à d'autres de modifier seulement les stats de rating
+        allow update: if request.auth != null && (
+          request.auth.uid == userId ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['averageRating', 'ratingCount']))
+        );
 
         // Ratings: tout utilisateur authentifié peut noter
         match /ratings/{ratingId} {

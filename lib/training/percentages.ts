@@ -219,11 +219,11 @@ export function calculateWorkingWeight(oneRepMax: number, percentage: number): n
   return roundToPlate(oneRepMax * (percentage / 100));
 }
 
-export function calculateTrainingMax(oneRepMax: number): number {
-  return roundToPlate(oneRepMax);
+export function calculateTrainingMax(oneRepMax: number, tmPercentage: number = 90): number {
+  return roundToPlate(oneRepMax * (tmPercentage / 100));
 }
 
-export function calculateWorkingWeight531(oneRepMax: number, percentage: number): number {
-  const trainingMax = calculateTrainingMax(oneRepMax);
+export function calculateWorkingWeight531(oneRepMax: number, percentage: number, tmPercentage: number = 90): number {
+  const trainingMax = calculateTrainingMax(oneRepMax, tmPercentage);
   return roundToPlate(trainingMax * (percentage / 100));
 }

@@ -10,7 +10,7 @@ import { signOut } from '@/lib/firebase/auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar, Trophy, Video, Star } from 'lucide-react';
-import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, Theme } from '@/types/user';
+import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, Theme, TrainingMaxPercentage } from '@/types/user';
 import { Palette } from 'lucide-react';
 import { getAllStandards } from '@/lib/calculations/standards';
 import { useDashboardData } from '@/lib/hooks/useFirestoreData';
@@ -39,6 +39,7 @@ export default function ProfilePage() {
   const [durationWeeks, setDurationWeeks] = useState<4 | 6>(userData?.programSettings?.durationWeeks || 4);
   const [priorityLift, setPriorityLift] = useState<PriorityLift>(userData?.programSettings?.priorityLift || 'squat');
   const [theme, setTheme] = useState<Theme>(userData?.preferences?.theme || 'dark');
+  const [trainingMaxPercentage, setTrainingMaxPercentage] = useState<TrainingMaxPercentage>(userData?.programSettings?.trainingMaxPercentage || 90);
 
   const handleSignOut = async () => {
     await signOut();
@@ -64,6 +65,7 @@ export default function ProfilePage() {
           durationWeeks,
           priorityLift,
           programType: '531',
+          trainingMaxPercentage,
         },
       });
       setIsEditing(false);
@@ -85,6 +87,7 @@ export default function ProfilePage() {
     setDurationWeeks(userData?.programSettings?.durationWeeks || 4);
     setPriorityLift(userData?.programSettings?.priorityLift || 'squat');
     setTheme(userData?.preferences?.theme || 'dark');
+    setTrainingMaxPercentage(userData?.programSettings?.trainingMaxPercentage || 90);
     setIsEditing(false);
   };
 
@@ -360,7 +363,7 @@ export default function ProfilePage() {
                 <span className="font-bold text-primary">5/3/1 de Jim Wendler</span>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Training Max (90% du 1RM) + BBB (Boring But Big)
+                Training Max ({trainingMaxPercentage}% du 1RM) + BBB (Boring But Big)
               </p>
             </div>
 
@@ -444,6 +447,37 @@ export default function ProfilePage() {
                 </p>
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label className="text-destructive font-medium">Training Max (%)</Label>
+              {isEditing ? (
+                <div className="flex gap-2">
+                  {([90, 95, 100] as const).map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => setTrainingMaxPercentage(pct)}
+                      className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                        trainingMaxPercentage === pct
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border'
+                      }`}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm font-medium py-2">{userData?.programSettings?.trainingMaxPercentage || 90}%</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {trainingMaxPercentage === 90
+                  ? 'Recommandé pour la plupart des lifters. Marge de sécurité maximale.'
+                  : trainingMaxPercentage === 95
+                  ? 'Pour les lifters intermédiaires/avancés. Charges plus proches du max.'
+                  : 'Charges basées directement sur le 1RM. Réservé aux avancés.'}
+              </p>
+            </div>
           </CardContent>
         </Card>
 

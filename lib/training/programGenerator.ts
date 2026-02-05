@@ -27,6 +27,7 @@ interface UserProfile {
   daysPerWeek: 3 | 4 | 5;
   durationWeeks: 4 | 6;
   priorityLift: PriorityLift;
+  trainingMaxPercentage?: number;
 }
 
 interface Maxes {
@@ -126,7 +127,8 @@ function generateDay(
   secondaryLift: Lift,
   maxes: Maxes,
   weekSets: WeekSetsResult,
-  isDeload: boolean
+  isDeload: boolean,
+  tmPercentage: number = 90
 ): DayPrescription {
   const liftNames = {
     squat: 'Squat',
@@ -136,7 +138,7 @@ function generateDay(
 
   // Use actual 1RM for test weeks, otherwise use training max calculation
   const calcWeight = weekSets.useTrainingMax !== false
-    ? calculateWorkingWeight531
+    ? (max: number, pct: number) => calculateWorkingWeight531(max, pct, tmPercentage)
     : calculateWorkingWeight;
 
   // PR increment: +2.5kg for bench, +5kg for squat/deadlift
@@ -177,7 +179,7 @@ function generateDay(
       isToolExercise: true,
       sets: weekSets.bbb.map((set) => ({
         ...set,
-        weight: calculateWorkingWeight531(maxes[primaryLift], set.percentage),
+        weight: calculateWorkingWeight531(maxes[primaryLift], set.percentage, tmPercentage),
       })),
       notes: 'Boring But Big - 5x10 @ 50%',
     };
@@ -197,7 +199,8 @@ function generateWeek(
   maxes: Maxes,
   duration: number,
   daysPerWeek: 3 | 4 | 5 = 3,
-  priorityLift: PriorityLift = 'squat'
+  priorityLift: PriorityLift = 'squat',
+  tmPercentage: number = 90
 ): WeekPrescription {
   const weekSets = getWeekSets(weekNumber, duration);
   const isDeload = weekSets.isDeload || false;
@@ -211,7 +214,8 @@ function generateWeek(
       split.secondary,
       maxes,
       isExtraDay ? getMediumSets(weekSets) : weekSets,
-      isDeload
+      isDeload,
+      tmPercentage
     );
   });
 
@@ -234,15 +238,15 @@ function getMediumSets(weekSets: WeekSetsResult): WeekSetsResult {
   };
 }
 
-function getCycleDescription(daysPerWeek: number = 3, priorityLift: PriorityLift = 'squat'): string {
+function getCycleDescription(daysPerWeek: number = 3, priorityLift: PriorityLift = 'squat', tmPercentage: number = 90): string {
   const liftNames = { squat: 'Squat', bench: 'Bench', deadlift: 'Deadlift' };
   const priorityName = liftNames[priorityLift];
   const extraDays = daysPerWeek > 3 ? ` Focus ${priorityName} avec ${daysPerWeek - 3} jour(s) supplémentaire(s).` : '';
 
-  return `Programme 5/3/1 de Jim Wendler avec BBB (Boring But Big). Basé sur le Training Max (90% du 1RM). ${daysPerWeek} jours/semaine.${extraDays}`;
+  return `Programme 5/3/1 de Jim Wendler avec BBB (Boring But Big). Basé sur le Training Max (${tmPercentage}% du 1RM). ${daysPerWeek} jours/semaine.${extraDays}`;
 }
 
-function getReasonings(daysPerWeek: number = 3, priorityLift: PriorityLift = 'squat'): string[] {
+function getReasonings(daysPerWeek: number = 3, priorityLift: PriorityLift = 'squat', tmPercentage: number = 90): string[] {
   const reasons: string[] = [];
   const liftNames = { squat: 'Squat', bench: 'Bench', deadlift: 'Deadlift' };
 
@@ -254,7 +258,7 @@ function getReasonings(daysPerWeek: number = 3, priorityLift: PriorityLift = 'sq
     reasons.push(`${liftNames[priorityLift]} travaillé 4x/semaine pour un focus maximal.`);
   }
 
-  reasons.push('Basé sur le Training Max (90% du 1RM) pour garantir une progression durable.');
+  reasons.push(`Basé sur le Training Max (${tmPercentage}% du 1RM) pour garantir une progression durable.`);
   reasons.push('AMRAP sur les sets clés - ne va pas à l\'échec, garde 1-2 reps en réserve.');
   reasons.push('BBB (5x10 @ 50%) pour le volume d\'hypertrophie.');
   reasons.push('Progression: +5kg squat/deadlift, +2.5kg bench par cycle de 4 semaines.');
@@ -267,6 +271,7 @@ export function generateProgram(profile: UserProfile): ProgramRecommendation {
   const duration = profile.durationWeeks || 4;
   const daysPerWeek = profile.daysPerWeek || 3;
   const priorityLift = profile.priorityLift || 'squat';
+  const tmPercentage = profile.trainingMaxPercentage || 90;
 
   const maxes: Maxes = {
     squat: profile.currentMaxes.squat,
@@ -276,7 +281,7 @@ export function generateProgram(profile: UserProfile): ProgramRecommendation {
 
   const weeks: WeekPrescription[] = [];
   for (let i = 1; i <= duration; i++) {
-    weeks.push(generateWeek(i, maxes, duration, daysPerWeek, priorityLift));
+    weeks.push(generateWeek(i, maxes, duration, daysPerWeek, priorityLift, tmPercentage));
   }
 
   const program: GeneratedProgram = {
@@ -287,12 +292,12 @@ export function generateProgram(profile: UserProfile): ProgramRecommendation {
     maxes,
     weeks,
     createdAt: new Date(),
-    description: getCycleDescription(daysPerWeek, priorityLift),
+    description: getCycleDescription(daysPerWeek, priorityLift, tmPercentage),
   };
 
   return {
     program,
-    reasoning: getReasonings(daysPerWeek, priorityLift),
+    reasoning: getReasonings(daysPerWeek, priorityLift, tmPercentage),
     expectedProgress: { squat: 5, bench: 2.5, deadlift: 5 },
   };
 }

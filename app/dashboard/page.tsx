@@ -53,6 +53,7 @@ export default function DashboardPage() {
         daysPerWeek: programSettings.daysPerWeek,
         durationWeeks: programSettings.durationWeeks,
         priorityLift: programSettings.priorityLift,
+        trainingMaxPercentage: programSettings.trainingMaxPercentage,
       })
     : null;
 

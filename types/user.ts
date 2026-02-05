@@ -41,11 +41,14 @@ export interface ProgramProgress {
 export type PriorityLift = 'squat' | 'bench' | 'deadlift';
 export type ProgramType = '531';
 
+export type TrainingMaxPercentage = 90 | 95 | 100;
+
 export interface ProgramSettings {
   daysPerWeek: 3 | 4 | 5;
   durationWeeks: 4 | 6;
   priorityLift: PriorityLift;
   programType?: ProgramType;
+  trainingMaxPercentage?: TrainingMaxPercentage;
 }
 
 export interface User {

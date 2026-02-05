@@ -194,7 +194,7 @@ export default function LeaderboardPage() {
             />
           </div>
 
-          {fullList.length > 3 && (
+          {fullList.length > 0 && (
             <Card>
               <CardContent className="p-4">
                 <Button
@@ -203,7 +203,7 @@ export default function LeaderboardPage() {
                   onClick={() => setShowFullList(!showFullList)}
                 >
                   <span className="text-sm font-medium">
-                    Voir le classement complet ({fullList.length} lifters)
+                    {showFullList ? 'Masquer' : 'Voir'} le classement complet ({fullList.length} lifter{fullList.length > 1 ? 's' : ''})
                   </span>
                   {showFullList ? (
                     <ChevronUp className="h-4 w-4" />

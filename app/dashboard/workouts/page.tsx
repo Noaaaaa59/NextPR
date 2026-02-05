@@ -10,6 +10,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useWorkouts } from '@/lib/hooks/useFirestoreData';
 import { updateWorkout, deleteWorkout } from '@/lib/firebase/firestore';
 import { calculateOneRepMax } from '@/lib/calculations/oneRepMax';
+import { mutate } from 'swr';
 import { Workout } from '@/types/workout';
 
 export default function WorkoutsPage() {
@@ -62,12 +63,16 @@ export default function WorkoutsPage() {
 
   const handleDeleteWorkout = async (workoutId: string) => {
     if (!user) return;
-    if (!confirm('Supprimer cet entraînement ?')) return;
+    if (!confirm('Supprimer cet entraînement et les records associés ?')) return;
 
     setDeleting(workoutId);
     try {
       await deleteWorkout(user.uid, workoutId);
       await refresh();
+      // Invalidate PRs and other stats caches since lifts were also deleted
+      mutate(`prs-${user.uid}`);
+      mutate(`estimated-${user.uid}`);
+      mutate(`best-session-${user.uid}`);
     } catch (error) {
       console.error('Error deleting workout:', error);
     } finally {

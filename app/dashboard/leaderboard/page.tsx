@@ -9,6 +9,16 @@ import { Trophy, ChevronDown, ChevronUp, Users, Filter } from 'lucide-react';
 import { SquatIcon, BenchIcon, DeadliftIcon } from '@/components/icons/LiftIcons';
 import { Podium, PodiumSkeleton } from '@/components/leaderboard/Podium';
 import { Gender, getWeightCategory, WeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE } from '@/types/user';
+import { LiftVideoRating } from '@/components/LiftVideoRating';
+
+interface PRData {
+  id?: string;
+  weight: number;
+  reps: number;
+  videoUrl?: string;
+  averageRating?: number;
+  ratingCount?: number;
+}
 
 interface LeaderboardEntry {
   userId: string;
@@ -20,6 +30,9 @@ interface LeaderboardEntry {
   bench: number;
   deadlift: number;
   total: number;
+  squatPR?: PRData | null;
+  benchPR?: PRData | null;
+  deadliftPR?: PRData | null;
 }
 
 type ViewMode = 'global' | 'category';
@@ -244,9 +257,56 @@ export default function LeaderboardPage() {
                               {entry.displayName || 'Lifter anonyme'}
                               {isCurrentUser && <span className="text-xs ml-1 opacity-70">(toi)</span>}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              S: {entry.squat} | B: {entry.bench} | D: {entry.deadlift}
-                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                              <span className="flex items-center gap-1">
+                                S: {entry.squat}
+                                {entry.squatPR?.videoUrl && entry.squatPR.id && (
+                                  <LiftVideoRating
+                                    liftOwnerId={entry.userId}
+                                    liftId={entry.squatPR.id}
+                                    videoUrl={entry.squatPR.videoUrl}
+                                    averageRating={entry.squatPR.averageRating}
+                                    ratingCount={entry.squatPR.ratingCount}
+                                    ownerName={entry.displayName}
+                                    exerciseName="squat"
+                                    weight={entry.squatPR.weight}
+                                    reps={entry.squatPR.reps}
+                                  />
+                                )}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                B: {entry.bench}
+                                {entry.benchPR?.videoUrl && entry.benchPR.id && (
+                                  <LiftVideoRating
+                                    liftOwnerId={entry.userId}
+                                    liftId={entry.benchPR.id}
+                                    videoUrl={entry.benchPR.videoUrl}
+                                    averageRating={entry.benchPR.averageRating}
+                                    ratingCount={entry.benchPR.ratingCount}
+                                    ownerName={entry.displayName}
+                                    exerciseName="bench"
+                                    weight={entry.benchPR.weight}
+                                    reps={entry.benchPR.reps}
+                                  />
+                                )}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                D: {entry.deadlift}
+                                {entry.deadliftPR?.videoUrl && entry.deadliftPR.id && (
+                                  <LiftVideoRating
+                                    liftOwnerId={entry.userId}
+                                    liftId={entry.deadliftPR.id}
+                                    videoUrl={entry.deadliftPR.videoUrl}
+                                    averageRating={entry.deadliftPR.averageRating}
+                                    ratingCount={entry.deadliftPR.ratingCount}
+                                    ownerName={entry.displayName}
+                                    exerciseName="deadlift"
+                                    weight={entry.deadliftPR.weight}
+                                    reps={entry.deadliftPR.reps}
+                                  />
+                                )}
+                              </span>
+                            </div>
                           </div>
 
                           <div className="text-right">

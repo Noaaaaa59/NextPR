@@ -394,6 +394,10 @@ export async function getLeaderboard(limitCount: number = 100) {
         bench,
         deadlift,
         total: squat + bench + deadlift,
+        // Include full PR data for video display
+        squatPR: squatPR ? { id: squatPR.id, weight: squatPR.weight, reps: squatPR.reps, videoUrl: squatPR.videoUrl, averageRating: squatPR.averageRating, ratingCount: squatPR.ratingCount } : null,
+        benchPR: benchPR ? { id: benchPR.id, weight: benchPR.weight, reps: benchPR.reps, videoUrl: benchPR.videoUrl, averageRating: benchPR.averageRating, ratingCount: benchPR.ratingCount } : null,
+        deadliftPR: deadliftPR ? { id: deadliftPR.id, weight: deadliftPR.weight, reps: deadliftPR.reps, videoUrl: deadliftPR.videoUrl, averageRating: deadliftPR.averageRating, ratingCount: deadliftPR.ratingCount } : null,
       };
     })
   );

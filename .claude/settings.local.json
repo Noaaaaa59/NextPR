@@ -38,7 +38,15 @@
       "WebFetch(domain:www.powerliftingmag.fr)",
       "WebFetch(domain:www.garagegymreviews.com)",
       "WebFetch(domain:www.social.plus)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(firebase:*)",
+      "Bash(npx firebase-tools:*)",
+      "Bash(gcloud:*)",
+      "Bash(where:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(py -m pip install:*)",
+      "Bash(python3 -m pip install:*)"
     ]
   }
 }

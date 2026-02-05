@@ -73,7 +73,7 @@ export const WEEK_531: Record<number, { heavy: SetPrescription[]; light: SetPres
       { reps: 3, percentage: 70 },
       { reps: 2, percentage: 80 },
       { reps: 1, percentage: 90 },
-      { reps: 1, percentage: 100 },
+      { reps: 1, percentage: 95 },
       { reps: 1, percentage: 0, amrap: true }, // 0% = PR attempt, weight calculated separately
     ],
     light: [
@@ -198,7 +198,7 @@ export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light
       { reps: 3, percentage: 70 },
       { reps: 2, percentage: 80 },
       { reps: 1, percentage: 90 },
-      { reps: 1, percentage: 100 },
+      { reps: 1, percentage: 95 },
       { reps: 1, percentage: 0, amrap: true }, // 0% = PR attempt, weight calculated separately
     ],
     light: [

@@ -61,6 +61,7 @@ export default function ProgramsPage() {
         daysPerWeek: programSettings.daysPerWeek,
         durationWeeks: programSettings.durationWeeks,
         priorityLift: programSettings.priorityLift,
+        programType: programSettings.programType,
       })
     : null;
 

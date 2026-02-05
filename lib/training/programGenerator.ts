@@ -1,5 +1,5 @@
 import { StrengthLevel } from '@/types/analytics';
-import { Experience, PriorityLift } from '@/types/user';
+import { Experience, PriorityLift, ProgramType } from '@/types/user';
 import {
   TrainingGoal,
   CycleType,
@@ -37,6 +37,7 @@ interface UserProfile {
   daysPerWeek: 3 | 4 | 5;
   durationWeeks: 4 | 6;
   priorityLift: PriorityLift;
+  programType?: ProgramType;
 }
 
 interface Maxes {
@@ -494,7 +495,10 @@ function getReasonings(profile: UserProfile, cycleType: CycleType, daysPerWeek: 
 }
 
 export function generateProgram(profile: UserProfile): ProgramRecommendation {
-  const cycleType = determineBestCycleType(profile);
+  // Use user's program type preference, or auto-detect based on strength level
+  const cycleType = profile.programType && profile.programType !== 'auto'
+    ? profile.programType as CycleType
+    : determineBestCycleType(profile);
   const goal = determineGoal(profile);
   const duration = profile.durationWeeks || getCycleDuration(cycleType);
   const daysPerWeek = profile.daysPerWeek || 3;

@@ -39,11 +39,13 @@ export interface ProgramProgress {
 }
 
 export type PriorityLift = 'squat' | 'bench' | 'deadlift';
+export type ProgramType = 'auto' | '531' | 'linear' | 'block' | 'hypertrophy';
 
 export interface ProgramSettings {
   daysPerWeek: 3 | 4 | 5;
   durationWeeks: 4 | 6;
   priorityLift: PriorityLift;
+  programType?: ProgramType;
 }
 
 export interface User {

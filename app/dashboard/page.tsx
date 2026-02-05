@@ -54,6 +54,7 @@ export default function DashboardPage() {
         daysPerWeek: programSettings.daysPerWeek,
         durationWeeks: programSettings.durationWeeks,
         priorityLift: programSettings.priorityLift,
+        programType: programSettings.programType,
       })
     : null;
 

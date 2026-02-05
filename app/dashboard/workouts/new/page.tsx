@@ -13,6 +13,7 @@ import { mutate } from 'swr';
 import { ArrowLeft, Plus, Trash2, Dumbbell, Wrench, Check, Loader2 } from 'lucide-react';
 import { DayPrescription, ExercisePrescription, SetPrescription } from '@/lib/training/types';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { RestTimer } from '@/components/workout/RestTimer';
 
 type ExerciseType = 'squat' | 'bench' | 'deadlift';
 
@@ -434,11 +435,15 @@ export default function NewWorkoutPage() {
 
       <div className="grid gap-4">
         {exercises.map((exercise, exIndex) => (
-          <Card
-            key={exIndex}
-            className={`border-2 ${exercise.isToolExercise ? 'bg-muted/30 border-muted' : 'border-primary/20'}`}
-          >
-            <CardHeader className="pb-2">
+          <div key={exIndex}>
+            {/* Rest Timer for main lifts */}
+            {!exercise.isToolExercise && (
+              <RestTimer exerciseType={exercise.type} />
+            )}
+            <Card
+              className={`border-2 ${exercise.isToolExercise ? 'bg-muted/30 border-muted' : 'border-primary/20'}`}
+            >
+              <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {exercise.isToolExercise ? (
@@ -543,7 +548,8 @@ export default function NewWorkoutPage() {
                 </Button>
               )}
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         ))}
 
         {!presetLoaded && (

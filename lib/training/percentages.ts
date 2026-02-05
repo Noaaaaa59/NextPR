@@ -211,7 +211,8 @@ export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light
 };
 
 export function roundToPlate(weight: number, increment: number = 2.5): number {
-  return Math.round(weight / increment) * increment;
+  // Toujours arrondir vers le bas pour garantir une progression visible entre les semaines
+  return Math.floor(weight / increment) * increment;
 }
 
 export function calculateWorkingWeight(oneRepMax: number, percentage: number): number {

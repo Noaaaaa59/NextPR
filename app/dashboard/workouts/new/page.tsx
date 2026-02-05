@@ -375,8 +375,10 @@ export default function NewWorkoutPage() {
       }
 
       await deleteDraftWorkout(user.uid);
-      // Invalidate SWR cache so dashboard doesn't show "Reprendre"
+      // Invalidate SWR caches
       mutate(`draft-${user.uid}`, null, false);
+      mutate(`workouts-${user.uid}`); // Refresh workouts list
+      mutate(`prs-${user.uid}`); // Refresh PRs
       router.push('/dashboard');
     } catch (error) {
       console.error('Error saving workout:', error);

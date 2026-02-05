@@ -215,7 +215,7 @@ export function calculateWorkingWeight(oneRepMax: number, percentage: number): n
 }
 
 export function calculateTrainingMax(oneRepMax: number): number {
-  return roundToPlate(oneRepMax * 0.9);
+  return roundToPlate(oneRepMax);
 }
 
 export function calculateWorkingWeight531(oneRepMax: number, percentage: number): number {

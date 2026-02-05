@@ -28,7 +28,6 @@ export default function ProfilePage() {
   const [gender, setGender] = useState<Gender>(userData?.gender || 'male');
   const [experience, setExperience] = useState<Experience>(userData?.experience as Experience || 'beginner');
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(userData?.preferences?.weightUnit as WeightUnit || 'kg');
-  const [restTimer, setRestTimer] = useState(userData?.preferences?.restTimerDefault?.toString() || '180');
   const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5>(userData?.programSettings?.daysPerWeek || 3);
   const [durationWeeks, setDurationWeeks] = useState<4 | 6>(userData?.programSettings?.durationWeeks || 4);
   const [priorityLift, setPriorityLift] = useState<PriorityLift>(userData?.programSettings?.priorityLift || 'squat');
@@ -51,7 +50,6 @@ export default function ProfilePage() {
         experience: experience,
         preferences: {
           weightUnit: weightUnit,
-          restTimerDefault: parseInt(restTimer) || 180,
           theme: userData?.preferences?.theme || 'light',
         },
         programSettings: {
@@ -76,7 +74,6 @@ export default function ProfilePage() {
     setGender(userData?.gender || 'male');
     setExperience(userData?.experience as Experience || 'beginner');
     setWeightUnit(userData?.preferences?.weightUnit as WeightUnit || 'kg');
-    setRestTimer(userData?.preferences?.restTimerDefault?.toString() || '180');
     setDaysPerWeek(userData?.programSettings?.daysPerWeek || 3);
     setDurationWeeks(userData?.programSettings?.durationWeeks || 4);
     setPriorityLift(userData?.programSettings?.priorityLift || 'squat');
@@ -293,26 +290,6 @@ export default function ProfilePage() {
                 ) : (
                   <p className="text-sm font-medium py-2">
                     {weightUnit === 'kg' ? 'Kilogrammes (kg)' : 'Livres (lbs)'}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="restTimer" className="text-destructive font-medium">Timer de repos (secondes)</Label>
-                {isEditing ? (
-                  <Input
-                    id="restTimer"
-                    type="number"
-                    value={restTimer}
-                    onChange={(e) => setRestTimer(e.target.value)}
-                    placeholder="180"
-                    min="30"
-                    max="600"
-                    step="30"
-                  />
-                ) : (
-                  <p className="text-sm font-medium py-2">
-                    {userData?.preferences?.restTimerDefault || 180} secondes
                   </p>
                 )}
               </div>

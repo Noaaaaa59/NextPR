@@ -29,7 +29,7 @@ export function getWeightCategory(bodyweight: number, gender: Gender): WeightCat
 export interface UserPreferences {
   weightUnit: WeightUnit;
   theme: Theme;
-  restTimerDefault: number;
+  restTimerDefault?: number; // Optional - now managed per exercise in localStorage
 }
 
 export interface ProgramProgress {

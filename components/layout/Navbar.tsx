@@ -23,6 +23,7 @@ export function Navbar() {
   const navItems = [
     { href: '/dashboard', label: 'Accueil' },
     { href: '/dashboard/workouts', label: 'Workouts' },
+    { href: '/dashboard/programs', label: 'Programmes' },
     { href: '/dashboard/tools', label: 'Outils' },
     { href: '/dashboard/analytics', label: 'Statistiques' },
     { href: '/dashboard/leaderboard', label: 'Classement' },

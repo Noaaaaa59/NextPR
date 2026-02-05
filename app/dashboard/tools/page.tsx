@@ -63,10 +63,6 @@ function PlateVisual({ plates, side }: { plates: PlateResult[]; side: 'left' | '
     }
   });
 
-  if (side === 'right') {
-    allPlates.reverse();
-  }
-
   return (
     <div className={`flex items-center gap-0.5 ${side === 'left' ? 'flex-row-reverse' : ''}`}>
       {allPlates.map((plate, idx) => (

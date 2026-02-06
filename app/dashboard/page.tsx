@@ -5,17 +5,65 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useDashboardData, useWorkouts, useDraftWorkout } from '@/lib/hooks/useFirestoreData';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatWeight } from '@/lib/utils';
-import { Award, Calendar, Dumbbell, Trophy, ChevronDown, ChevronUp, Play, SkipForward, PlayCircle } from 'lucide-react';
+import { Calendar, Dumbbell, Trophy, ChevronDown, ChevronUp, Play, SkipForward, PlayCircle, Award, Hash, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SquatIcon, BenchIcon, DeadliftIcon } from '@/components/icons/LiftIcons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { generateProgram } from '@/lib/training/programGenerator';
-import { getStrengthLevel } from '@/lib/calculations/standards';
+import { getStandardWeight, getAllStandards, calculateWilksScore } from '@/lib/calculations/standards';
+import { levelColors as chartLevelColors, levelLabels as chartLevelLabels } from '@/components/charts/StrengthStandardsChart';
 import { DayPrescription } from '@/lib/training/types';
 import { Experience } from '@/types/user';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { StrengthLevel } from '@/types/analytics';
+
+// Text color variant derived from chart bar colors (bg-X -> text-X)
+const LEVEL_TEXT_COLORS: Record<StrengthLevel, string> = {
+  untrained: 'text-gray-400',
+  novice: 'text-green-500',
+  intermediate: 'text-blue-500',
+  advanced: 'text-purple-500',
+  elite: 'text-amber-500',
+  international: 'text-red-600',
+};
+
+const LEVEL_ORDER: StrengthLevel[] = ['untrained', 'novice', 'intermediate', 'advanced', 'elite', 'international'];
+
+// Matches the visual segments from StrengthStandardsChart:
+// segment "advanced" (purple) covers [standards.intermediate, standards.advanced)
+// So at 105kg bench (74kg cat), you're in the purple zone visually.
+function getChartVisualLevel(
+  exercise: 'squat' | 'bench' | 'deadlift',
+  weight: number,
+  bodyweight: number,
+  gender: 'male' | 'female'
+): { currentLevel: StrengthLevel; nextLevel: StrengthLevel | null; progress: number; nextWeight: number } {
+  const standards = getAllStandards(exercise, bodyweight, gender);
+
+  // Chart segments: level X covers [standards[prev], standards[X])
+  // Find which segment the weight falls in (top-down)
+  for (let i = LEVEL_ORDER.length - 1; i >= 0; i--) {
+    const segStart = i === 0 ? 0 : standards[LEVEL_ORDER[i - 1]];
+    if (weight >= segStart) {
+      const level = LEVEL_ORDER[i];
+      const segEnd = standards[level];
+
+      if (i >= LEVEL_ORDER.length - 1 || weight >= standards[LEVEL_ORDER[LEVEL_ORDER.length - 1]]) {
+        return { currentLevel: 'international', nextLevel: null, progress: 100, nextWeight: 0 };
+      }
+
+      const range = segEnd - segStart;
+      const progress = range > 0 ? Math.min(100, Math.round(((weight - segStart) / range) * 100)) : 100;
+      const nextLevel = i < LEVEL_ORDER.length - 1 ? LEVEL_ORDER[i + 1] : null;
+
+      return { currentLevel: level, nextLevel, progress, nextWeight: segEnd };
+    }
+  }
+
+  return { currentLevel: 'untrained', nextLevel: 'novice', progress: 0, nextWeight: standards.novice };
+}
 
 export default function DashboardPage() {
   const { user, userData, refreshUserData } = useAuth();
@@ -38,9 +86,11 @@ export default function DashboardPage() {
   const totalAbsolu = squatMax + benchMax + deadliftMax;
 
   const lastWorkout = workouts[0];
+  const totalWorkouts = workouts.length;
 
   const hasPRs = squatMax > 0 && benchMax > 0 && deadliftMax > 0;
-  const strengthLevel = hasPRs ? getStrengthLevel('squat', squatMax, bodyweight, gender) : 'intermediate';
+  const overallLevel = hasPRs ? getChartVisualLevel('squat', squatMax, bodyweight, gender).currentLevel : null;
+  const wilksScore = hasPRs ? calculateWilksScore(totalAbsolu, bodyweight, gender === 'male') : 0;
 
   const programSettings = userData?.programSettings || { daysPerWeek: 3 as const, durationWeeks: 4 as const, priorityLift: 'squat' as const };
 
@@ -119,75 +169,91 @@ export default function DashboardPage() {
     }).format(date);
   };
 
-  const renderPRCard = (
+  const renderPRCell = (
     exercise: 'squat' | 'bench' | 'deadlift',
     title: string,
     Icon: React.ComponentType<{ className?: string }>
   ) => {
     const pr = truePRs[exercise];
     const estimated = estimated1RMs[exercise];
+    const weight = pr?.weight || 0;
+
+    const progressData = weight > 0
+      ? getChartVisualLevel(exercise, weight, bodyweight, gender)
+      : null;
 
     return (
-      <Card className="border hover:shadow-md transition-all hover:border-primary/30">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Icon className="h-7 w-7 text-primary" />
+      <div className="text-center">
+        <div className="flex items-center justify-center gap-1.5 mb-1">
+          <Icon className="h-4 w-4 text-primary" />
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{title}</span>
+        </div>
+
+        {loading ? (
+          <p className="text-xl font-bold text-primary">...</p>
+        ) : pr ? (
+          <>
+            <p className="text-xl font-bold text-destructive leading-tight">
+              {pr.weight} <span className="text-xs font-medium text-destructive/70">{weightUnit}</span>
+            </p>
+            {estimated && estimated.estimatedMax > pr.weight ? (
+              <p className="text-[10px] text-primary leading-tight">~{estimated.estimatedMax} est.</p>
+            ) : (
+              <p className="text-[10px] leading-tight">&nbsp;</p>
+            )}
+          </>
+        ) : (
+          <p className="text-xl font-bold text-muted-foreground">—</p>
+        )}
+
+        {!loading && progressData && weight > 0 && (
+          <div className="mt-2">
+            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${chartLevelColors[progressData.currentLevel]}`}
+                style={{ width: `${progressData.progress}%` }}
+              />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
-              {loading ? (
-                <div className="text-2xl font-bold text-primary">...</div>
-              ) : pr ? (
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-2xl font-bold text-destructive">
-                    {pr.weight}
-                  </span>
-                  <span className="text-sm text-destructive/70">{weightUnit}</span>
-                  <span className="text-xs text-muted-foreground">
-                    ({pr.reps}r)
-                  </span>
-                </div>
-              ) : (
-                <div className="text-2xl font-bold text-muted-foreground">—</div>
-              )}
-              {!loading && pr && estimated && estimated.estimatedMax > pr.weight && (
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-sm font-semibold text-primary">
-                    {formatWeight(estimated.estimatedMax, weightUnit)}
-                  </span>
-                  <span className="text-xs text-primary/60">
-                    estimé
-                  </span>
-                </div>
-              )}
-            </div>
+            <p className={`text-[10px] font-semibold mt-1 ${LEVEL_TEXT_COLORS[progressData.currentLevel]}`}>
+              {chartLevelLabels[progressData.currentLevel]}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     );
   };
 
   return (
     <div className="container mx-auto p-4 max-w-5xl">
-      <div className="mb-6 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-xl -z-10"></div>
-        <div className="p-4 sm:p-6">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-1">
-            Salut, {userData?.displayName || 'Lifter'}!
-          </h1>
-          <p className="text-sm text-muted-foreground mb-3">
-            Suivez vos performances et progressez
-          </p>
-          <Button asChild size="sm">
-            <Link href="/dashboard/workouts/new">
-              <Dumbbell className="mr-2 h-4 w-4" />
-              Nouveau Workout
-            </Link>
-          </Button>
+      {/* Header compact avec badge niveau */}
+      <div className="mb-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">
+              Salut, {userData?.displayName || 'Lifter'}!
+            </h1>
+            <div className="flex items-center gap-2 mt-1">
+              {overallLevel && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${chartLevelColors[overallLevel]}`} />
+                  <span className={LEVEL_TEXT_COLORS[overallLevel]}>{chartLevelLabels[overallLevel]}</span>
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {totalWorkouts > 0 ? `${totalWorkouts} workout${totalWorkouts > 1 ? 's' : ''}` : 'Commence ton premier workout!'}
+              </span>
+            </div>
+          </div>
         </div>
+        <Button asChild size="sm">
+          <Link href="/dashboard/workouts/new">
+            <Dumbbell className="mr-2 h-4 w-4" />
+            Nouveau Workout
+          </Link>
+        </Button>
       </div>
 
+      {/* Draft workout banner */}
       {draftWorkout && (
         <Card className="mb-4 border-2 border-orange-500/50 bg-gradient-to-br from-orange-500/10 to-orange-500/5">
           <CardContent className="p-4">
@@ -197,7 +263,7 @@ export default function DashboardPage() {
                   <PlayCircle className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">Séance en cours</p>
+                  <p className="font-medium text-sm">Seance en cours</p>
                   <p className="text-xs text-muted-foreground">
                     {draftWorkout.title || 'Workout'}
                   </p>
@@ -213,193 +279,204 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        {renderPRCard('squat', 'Squat', SquatIcon)}
-        {renderPRCard('bench', 'Bench', BenchIcon)}
-        {renderPRCard('deadlift', 'Deadlift', DeadliftIcon)}
+      {/* HERO: Prochaine seance */}
+      {program && nextDay && currentWeek ? (
+        <Card className="mb-5 border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-primary/3 to-transparent">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                <Play className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-bold">Prochaine seance</p>
+                <p className="text-xs text-muted-foreground">{currentWeek.name}</p>
+              </div>
+            </div>
+
+            <div className="bg-background/60 rounded-xl p-4 mb-4">
+              <p className="text-sm font-semibold text-primary mb-2">{nextDay.name}</p>
+              <div className="space-y-1.5">
+                {nextDay.exercises.map((ex, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{ex.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {ex.sets.length} x {ex.sets[0]?.reps}{ex.sets[ex.sets.length - 1]?.amrap ? '+' : ''} @ {ex.sets[ex.sets.length - 1]?.weight || '?'}{weightUnit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                size="lg"
+                className="flex-1"
+                onClick={() => handleLaunchWorkout(nextDay, progress.currentWeek, progress.currentDay)}
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Lancer la seance
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => setShowSkipConfirm(true)}
+                disabled={skipping}
+              >
+                <SkipForward className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="mb-5 border border-dashed border-primary/30">
+          <CardContent className="p-5 text-center">
+            <Dumbbell className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm font-medium mb-1">Aucun programme actif</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              {!hasPRs
+                ? 'Enregistre tes PRs en squat, bench et deadlift pour generer un programme'
+                : 'Configure ton programme dans les reglages'}
+            </p>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={hasPRs ? '/dashboard/programs' : '/dashboard/workouts/new'}>
+                {hasPRs ? 'Voir programmes' : 'Commencer'}
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* PRs sur une seule ligne */}
+      <Card className="mb-5 border">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-3 gap-4">
+            {renderPRCell('squat', 'Squat', SquatIcon)}
+            {renderPRCell('bench', 'Bench', BenchIcon)}
+            {renderPRCell('deadlift', 'Deadlift', DeadliftIcon)}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stats compactes en ligne */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Trophy className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-primary leading-tight">
+              {loading ? '...' : totalAbsolu > 0 ? `${totalAbsolu}` : '—'}
+            </p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
+          </div>
+        </div>
+
+        <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Award className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-primary leading-tight">
+              {loading ? '...' : bestSession ? `${bestSession.total}` : '—'}
+            </p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Best Session</p>
+          </div>
+        </div>
+
+        <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Hash className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-primary leading-tight">
+              {workoutsLoading ? '...' : totalWorkouts}
+            </p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Workouts</p>
+          </div>
+        </div>
+
+        <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Scale className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-primary leading-tight">
+              {loading ? '...' : wilksScore > 0 ? wilksScore.toFixed(0) : '—'}
+            </p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Wilks</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <Card className="border bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                <Trophy className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Meilleure Session</p>
-                <div className="text-xl font-bold text-primary">
-                  {loading ? '...' : bestSession ? formatWeight(bestSession.total, weightUnit) : '—'}
-                </div>
-                {!loading && bestSession && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    {bestSession.lifts.squat} / {bestSession.lifts.bench} / {bestSession.lifts.deadlift}
-                  </p>
-                )}
-                {!loading && !bestSession && (
+      {/* Dernier entrainement */}
+      <Card className="border">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Calendar className="h-4 w-4 text-primary" />
+            <span className="font-medium text-sm">Dernier entrainement</span>
+          </div>
+          {workoutsLoading ? (
+            <p className="text-xs text-muted-foreground">Chargement...</p>
+          ) : lastWorkout ? (
+            <div>
+              <div
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => setShowWorkoutDetails(!showWorkoutDetails)}
+              >
+                <div>
+                  <p className="text-sm font-semibold">{formatDate(lastWorkout.date)}</p>
                   <p className="text-xs text-muted-foreground">
-                    Fais S/B/D dans une même séance
+                    {lastWorkout.exercises.map(e => e.name.split(' ')[0]).join(' • ')}
                   </p>
+                </div>
+                {showWorkoutDetails ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card className="border bg-gradient-to-br from-accent/30 to-accent/10 border-primary/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/80 flex items-center justify-center shrink-0">
-                <Award className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Absolu</p>
-                <div className="text-xl font-bold text-primary">
-                  {loading ? '...' : totalAbsolu > 0 ? formatWeight(totalAbsolu, weightUnit) : '—'}
-                </div>
-                {!loading && totalAbsolu > 0 && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    {squatMax} / {benchMax} / {deadliftMax}
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Card className="border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="h-4 w-4 text-primary" />
-              <span className="font-medium text-sm">Dernier entraînement</span>
-            </div>
-            {workoutsLoading ? (
-              <p className="text-xs text-muted-foreground">Chargement...</p>
-            ) : lastWorkout ? (
-              <div>
-                <div
-                  className="flex items-center justify-between cursor-pointer"
-                  onClick={() => setShowWorkoutDetails(!showWorkoutDetails)}
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{formatDate(lastWorkout.date)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {lastWorkout.exercises.map(e => e.name.split(' ')[0]).join(' • ')}
-                    </p>
-                  </div>
-                  {showWorkoutDetails ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-
-                {showWorkoutDetails && (
-                  <div className="mt-3 pt-3 border-t space-y-2">
-                    {lastWorkout.exercises.map((ex, i) => (
-                      <div key={i} className="text-xs">
-                        <span className="font-medium text-primary">{ex.name}</span>
-                        <div className="text-muted-foreground">
-                          {ex.sets.map((s, j) => (
-                            <span key={j}>
-                              {j > 0 && ' • '}
-                              {s.weight}×{s.reps}
-                            </span>
-                          ))}
-                        </div>
+              {showWorkoutDetails && (
+                <div className="mt-3 pt-3 border-t space-y-2">
+                  {lastWorkout.exercises.map((ex, i) => (
+                    <div key={i} className="text-xs">
+                      <span className="font-medium text-primary">{ex.name}</span>
+                      <div className="text-muted-foreground">
+                        {ex.sets.map((s, j) => (
+                          <span key={j}>
+                            {j > 0 && ' • '}
+                            {s.weight}x{s.reps}
+                          </span>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
-                <Button variant="outline" size="sm" className="w-full mt-3" asChild>
-                  <Link href="/dashboard/workouts">Voir historique</Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="text-center py-2">
-                <Dumbbell className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground mb-2">
-                  Aucun entraînement récent
-                </p>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/dashboard/workouts/new">Commencer</Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Award className="h-4 w-4 text-primary" />
-              <span className="font-medium text-sm">Programme actif</span>
+              <Button variant="outline" size="sm" className="w-full mt-3" asChild>
+                <Link href="/dashboard/workouts">Voir historique</Link>
+              </Button>
             </div>
-            {program && nextDay && currentWeek ? (
-              <div>
-                <p className="text-sm font-semibold">{program.program.name}</p>
-                <p className="text-xs text-muted-foreground mb-2">
-                  {currentWeek.name}
-                </p>
-
-                <div className="bg-primary/5 rounded-lg p-2 mb-3">
-                  <p className="text-xs font-medium text-primary mb-1">{nextDay.name}</p>
-                  <div className="text-xs text-muted-foreground space-y-0.5">
-                    {nextDay.exercises.slice(0, 2).map((ex, i) => (
-                      <div key={i}>
-                        {ex.name}: {ex.sets.length} séries
-                      </div>
-                    ))}
-                    {nextDay.exercises.length > 2 && (
-                      <div>+ {nextDay.exercises.length - 2} accessoires</div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleLaunchWorkout(nextDay, progress.currentWeek, progress.currentDay)}
-                  >
-                    <Play className="h-3 w-3 mr-1" />
-                    Lancer
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowSkipConfirm(true)}
-                    disabled={skipping}
-                  >
-                    <SkipForward className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-2">
-                <Award className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground mb-2">
-                  {squatMax === 0 || benchMax === 0 || deadliftMax === 0
-                    ? 'Enregistre tes PRs pour générer un programme'
-                    : 'Aucun programme actif'}
-                </p>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/dashboard/programs">Voir programmes</Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          ) : (
+            <div className="text-center py-2">
+              <Dumbbell className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground mb-2">
+                Aucun entrainement recent
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/workouts/new">Commencer</Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <ConfirmDialog
         open={showSkipConfirm}
         onOpenChange={setShowSkipConfirm}
-        title="Passer cette séance ?"
-        description="La séance sera marquée comme passée et tu passeras à la suivante. Cette action est irréversible."
+        title="Passer cette seance ?"
+        description="La seance sera marquee comme passee et tu passeras a la suivante. Cette action est irreversible."
         confirmLabel="Passer"
         cancelLabel="Annuler"
         onConfirm={async () => {

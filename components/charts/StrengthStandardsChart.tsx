@@ -9,7 +9,7 @@ interface StrengthStandardsChartProps {
   currentLevel: StrengthLevel;
 }
 
-const levelColors: Record<StrengthLevel, string> = {
+export const levelColors: Record<StrengthLevel, string> = {
   untrained: 'bg-gray-400',
   novice: 'bg-green-500',
   intermediate: 'bg-blue-500',
@@ -18,7 +18,7 @@ const levelColors: Record<StrengthLevel, string> = {
   international: 'bg-red-600',
 };
 
-const levelLabels: Record<StrengthLevel, string> = {
+export const levelLabels: Record<StrengthLevel, string> = {
   untrained: 'Débutant',
   novice: 'Novice',
   intermediate: 'Intermédiaire',
@@ -27,11 +27,21 @@ const levelLabels: Record<StrengthLevel, string> = {
   international: 'International',
 };
 
+// Determine which visual segment the weight falls in
+// Segment for level X covers [standards[prev_level], standards[X])
+function getVisualLevel(weight: number, standards: Record<StrengthLevel, number>): StrengthLevel {
+  const levels: StrengthLevel[] = ['untrained', 'novice', 'intermediate', 'advanced', 'elite', 'international'];
+  for (let i = levels.length - 1; i >= 0; i--) {
+    const segStart = i === 0 ? 0 : standards[levels[i - 1]];
+    if (weight >= segStart) return levels[i];
+  }
+  return 'untrained';
+}
+
 export function StrengthStandardsChart({
   exercise,
   currentWeight,
   standards,
-  currentLevel,
 }: StrengthStandardsChartProps) {
   const maxStandard = standards.international;
   const levels: StrengthLevel[] = ['untrained', 'novice', 'intermediate', 'advanced', 'elite', 'international'];
@@ -42,7 +52,8 @@ export function StrengthStandardsChart({
     deadlift: 'Deadlift',
   };
 
-  const currentLevelIndex = levels.indexOf(currentLevel);
+  const visualLevel = getVisualLevel(currentWeight, standards);
+  const currentLevelIndex = levels.indexOf(visualLevel);
   const nextLevel = currentLevelIndex < levels.length - 1 ? levels[currentLevelIndex + 1] : null;
 
   return (
@@ -50,7 +61,7 @@ export function StrengthStandardsChart({
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{exerciseLabels[exercise]}</span>
         <span className="text-xs text-muted-foreground">
-          Niveau: <span className={`font-medium ${currentLevel === 'international' ? 'text-red-600' : 'text-foreground'}`}>{levelLabels[currentLevel]}</span>
+          Niveau: <span className={`font-medium ${visualLevel === 'international' ? 'text-red-600' : 'text-foreground'}`}>{levelLabels[visualLevel]}</span>
         </span>
       </div>
 
@@ -107,7 +118,7 @@ export function StrengthStandardsChart({
         </span>
         {nextLevel && (
           <span className="text-xs text-muted-foreground ml-2">
-            (prochain: {standards[nextLevel]} kg)
+            (prochain: {standards[visualLevel]} kg)
           </span>
         )}
       </div>

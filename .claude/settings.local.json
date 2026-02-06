@@ -47,7 +47,13 @@
       "Bash(python -m pip install:*)",
       "Bash(py -m pip install:*)",
       "Bash(python3 -m pip install:*)",
-      "Bash(claude:*)"
+      "Bash(claude:*)",
+      "WebFetch(domain:strengthlab360.com)",
+      "WebFetch(domain:www.strengthlog.com)",
+      "WebFetch(domain:www.powerliftingwatch.com)",
+      "WebFetch(domain:www.juggernautai.app)",
+      "WebFetch(domain:powerliftpro.app)",
+      "WebFetch(domain:www.hevyapp.com)"
     ]
   }
 }

@@ -12,6 +12,7 @@ import { updateWorkout, deleteWorkout } from '@/lib/firebase/firestore';
 import { calculateOneRepMax } from '@/lib/calculations/oneRepMax';
 import { mutate } from 'swr';
 import { Workout } from '@/types/workout';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function WorkoutsPage() {
   const { user } = useAuth();
@@ -20,6 +21,8 @@ export default function WorkoutsPage() {
   const [editedWorkout, setEditedWorkout] = useState<Workout | null>(null);
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
@@ -58,12 +61,12 @@ export default function WorkoutsPage() {
       setEditedWorkout(null);
     } catch (error) {
       console.error('Error updating workout:', error);
+      setError('Erreur lors de la modification. Veuillez réessayer.');
     }
   };
 
   const handleDeleteWorkout = async (workoutId: string) => {
     if (!user) return;
-    if (!confirm('Supprimer cet entraînement et les records associés ?')) return;
 
     setDeleting(workoutId);
     try {
@@ -75,8 +78,10 @@ export default function WorkoutsPage() {
       mutate(`best-session-${user.uid}`);
     } catch (error) {
       console.error('Error deleting workout:', error);
+      setError('Erreur lors de la suppression. Veuillez réessayer.');
     } finally {
       setDeleting(null);
+      setDeleteConfirmId(null);
     }
   };
 
@@ -158,6 +163,12 @@ export default function WorkoutsPage() {
         </Button>
       </div>
 
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          {error}
+        </div>
+      )}
+
       <Card className="border-2">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
@@ -232,7 +243,7 @@ export default function WorkoutsPage() {
                               disabled={deleting === workout.id}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (workout.id) handleDeleteWorkout(workout.id);
+                                if (workout.id) setDeleteConfirmId(workout.id);
                               }}
                             >
                               <Trash2 className="h-3 w-3" />
@@ -386,6 +397,18 @@ export default function WorkoutsPage() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deleteConfirmId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
+        title="Supprimer cet entraînement ?"
+        description="L'entraînement et les records associés seront supprimés. Cette action est irréversible."
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        variant="destructive"
+        loading={deleting !== null}
+        onConfirm={() => { if (deleteConfirmId) handleDeleteWorkout(deleteConfirmId); }}
+      />
     </div>
   );
 }

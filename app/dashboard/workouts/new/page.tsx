@@ -6,7 +6,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createWorkout, createLift, updateUserProfile, saveDraftWorkout, getDraftWorkout, deleteDraftWorkout } from '@/lib/firebase/firestore';
+import { createWorkout, createLift, updateUserProfile, saveDraftWorkout, getDraftWorkout, deleteDraftWorkout, getPersonalRecord } from '@/lib/firebase/firestore';
 import { calculateOneRepMax } from '@/lib/calculations/oneRepMax';
 import { Timestamp } from 'firebase/firestore';
 import { mutate } from 'swr';
@@ -14,6 +14,7 @@ import { ArrowLeft, Plus, Trash2, Dumbbell, Wrench, Check, Loader2 } from 'lucid
 import { DayPrescription, ExercisePrescription, SetPrescription } from '@/lib/training/types';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RestTimer } from '@/components/workout/RestTimer';
+import { PRCelebration, NewPR } from '@/components/workout/PRCelebration';
 
 type ExerciseType = 'squat' | 'bench' | 'deadlift';
 
@@ -43,6 +44,9 @@ export default function NewWorkoutPage() {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [newPRs, setNewPRs] = useState<NewPR[]>([]);
+  const [showPRCelebration, setShowPRCelebration] = useState(false);
   const draftStartedAt = useRef<Timestamp | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastPresetRef = useRef<string | null>(null);
@@ -335,13 +339,29 @@ export default function NewWorkoutPage() {
         sets: ex.sets.filter(s => s.completed)
       }));
 
-      await createWorkout({
+      // Fetch current PRs BEFORE creating lifts
+      const exerciseTypes = [...new Set(
+        mainLifts
+          .filter(ex => ['squat', 'bench', 'deadlift'].includes(ex.type))
+          .map(ex => ex.type as 'squat' | 'bench' | 'deadlift')
+      )];
+      const currentPRs = await Promise.all(
+        exerciseTypes.map(async (type) => ({
+          type,
+          pr: await getPersonalRecord(user.uid, type),
+        }))
+      );
+      const prMap = new Map(currentPRs.map(({ type, pr }) => [type, pr]));
+
+      const workoutId = await createWorkout({
         userId: user.uid,
         date: Timestamp.now(),
         exercises: workoutExercises,
         completed: true,
         notes: workoutTitle || ''
       });
+
+      const newLiftData: Array<{ exercise: 'squat' | 'bench' | 'deadlift'; weight: number; reps: number }> = [];
 
       for (const exercise of mainLifts) {
         const completedSets = exercise.sets.filter(set => set.completed && set.weight > 0 && set.reps > 0);
@@ -356,12 +376,21 @@ export default function NewWorkoutPage() {
         if (bestSet.weight > 0 && bestSet.reps > 0) {
           await createLift({
             userId: user.uid,
+            workoutId,
             exercise: exercise.type,
             weight: bestSet.weight,
             reps: bestSet.reps,
             estimatedMax: calculateOneRepMax(bestSet.weight, bestSet.reps),
             date: Timestamp.now()
           });
+
+          if (['squat', 'bench', 'deadlift'].includes(exercise.type)) {
+            newLiftData.push({
+              exercise: exercise.type as 'squat' | 'bench' | 'deadlift',
+              weight: bestSet.weight,
+              reps: bestSet.reps,
+            });
+          }
         }
       }
 
@@ -391,14 +420,40 @@ export default function NewWorkoutPage() {
       mutate(`draft-${user.uid}`, null, false);
       mutate(`workouts-${user.uid}`); // Refresh workouts list
       mutate(`prs-${user.uid}`); // Refresh PRs
-      router.push('/dashboard');
+
+      // Detect new PRs
+      const detectedPRs: NewPR[] = [];
+      for (const lift of newLiftData) {
+        const oldPR = prMap.get(lift.exercise);
+        const oldWeight = oldPR?.weight ?? null;
+        if (oldWeight === null || lift.weight > oldWeight) {
+          detectedPRs.push({
+            exercise: lift.exercise,
+            weight: lift.weight,
+            reps: lift.reps,
+            previousWeight: oldWeight,
+          });
+        }
+      }
+
+      if (detectedPRs.length > 0) {
+        setNewPRs(detectedPRs);
+        setShowPRCelebration(true);
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error) {
       console.error('Error saving workout:', error);
-      alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
+      setSaveError('Erreur lors de la sauvegarde. Veuillez réessayer.');
     } finally {
       setSaving(false);
     }
   };
+
+  const handlePRCelebrationDismiss = useCallback(() => {
+    setShowPRCelebration(false);
+    router.push('/dashboard');
+  }, [router]);
 
   const hasCompletedSets = exercises.some(ex => !ex.isToolExercise && ex.sets.some(s => s.completed));
   const hasAnyData = exercises.length > 0;
@@ -619,6 +674,9 @@ export default function NewWorkoutPage() {
             {saving ? 'Sauvegarde...' : 'Terminer le Workout'}
           </Button>
         </div>
+        {saveError && (
+          <p className="text-sm text-destructive text-center">{saveError}</p>
+        )}
       </div>
 
       <ConfirmDialog
@@ -630,6 +688,13 @@ export default function NewWorkoutPage() {
         cancelLabel="Continuer"
         onConfirm={confirmCancel}
       />
+
+      {showPRCelebration && (
+        <PRCelebration
+          newPRs={newPRs}
+          onDismiss={handlePRCelebrationDismiss}
+        />
+      )}
     </div>
   );
 }

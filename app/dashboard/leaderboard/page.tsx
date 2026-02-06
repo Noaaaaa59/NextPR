@@ -41,6 +41,7 @@ export default function LeaderboardPage() {
   const { user, userData } = useAuth();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('global');
   const [selectedCategory, setSelectedCategory] = useState<WeightCategory | null>(null);
   const [showFullList, setShowFullList] = useState(false);
@@ -54,6 +55,7 @@ export default function LeaderboardPage() {
       setLeaderboard(data);
     } catch (error) {
       console.error('Error loading leaderboard:', error);
+      setError('Impossible de charger le classement. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
@@ -131,6 +133,12 @@ export default function LeaderboardPage() {
           Les meilleurs PR de la communauté
         </p>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          {error}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-6">
         <Button

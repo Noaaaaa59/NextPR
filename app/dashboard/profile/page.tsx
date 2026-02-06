@@ -28,6 +28,7 @@ export default function ProfilePage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [videoUploadLift, setVideoUploadLift] = useState<'squat' | 'bench' | 'deadlift' | null>(null);
 
   const [displayName, setDisplayName] = useState(userData?.displayName || '');
@@ -72,6 +73,7 @@ export default function ProfilePage() {
       window.location.reload();
     } catch (error) {
       console.error('Error saving profile:', error);
+      setSaveError('Erreur lors de la sauvegarde. Veuillez réessayer.');
     } finally {
       setSaving(false);
     }
@@ -131,6 +133,12 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {saveError && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          {saveError}
+        </div>
+      )}
 
       <div className="space-y-4">
         <Card>

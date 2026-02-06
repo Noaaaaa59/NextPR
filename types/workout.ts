@@ -45,6 +45,7 @@ export interface DraftWorkout {
 export interface Lift {
   id?: string;
   userId: string;
+  workoutId?: string;
   exercise: 'squat' | 'bench' | 'deadlift';
   weight: number;
   reps: number;

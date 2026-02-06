@@ -12,6 +12,7 @@ import { StrengthLevel } from '@/types/analytics';
 import { TrendingUp, Target, Award, Scale } from 'lucide-react';
 import { SquatIcon, BenchIcon, DeadliftIcon } from '@/components/icons/LiftIcons';
 import { getWeightCategory } from '@/types/user';
+import { useWorkouts } from '@/lib/hooks/useFirestoreData';
 
 interface ExerciseData {
   lifts: Lift[];
@@ -23,6 +24,8 @@ interface ExerciseData {
 export default function AnalyticsPage() {
   const { user, userData } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { workouts } = useWorkouts(user?.uid);
   const [squatData, setSquatData] = useState<ExerciseData | null>(null);
   const [benchData, setBenchData] = useState<ExerciseData | null>(null);
   const [deadliftData, setDeadliftData] = useState<ExerciseData | null>(null);
@@ -73,6 +76,7 @@ export default function AnalyticsPage() {
       });
     } catch (error) {
       console.error('Error loading analytics:', error);
+      setError('Impossible de charger les statistiques. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
@@ -141,6 +145,12 @@ export default function AnalyticsPage() {
         </p>
       </div>
 
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <Card className="bg-gradient-to-br from-primary/5 to-primary/10">
           <CardContent className="p-3">
@@ -185,7 +195,7 @@ export default function AnalyticsPage() {
               <span className="text-xs text-muted-foreground">Séances</span>
             </div>
             <div className="text-xl font-bold">
-              {loading ? '...' : (squatData?.lifts.length || 0) + (benchData?.lifts.length || 0) + (deadliftData?.lifts.length || 0)}
+              {loading ? '...' : workouts.length}
             </div>
           </CardContent>
         </Card>

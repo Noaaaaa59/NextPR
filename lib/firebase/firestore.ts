@@ -50,42 +50,18 @@ export async function updateWorkout(
 }
 
 export async function deleteWorkout(userId: string, workoutId: string): Promise<void> {
-  const workoutRef = doc(db, 'users', userId, 'workouts', workoutId);
+  // Delete associated lifts by workoutId
+  const liftsRef = collection(db, 'users', userId, 'lifts');
+  const liftsQuery = query(liftsRef, where('workoutId', '==', workoutId));
+  const liftsSnap = await getDocs(liftsQuery);
 
-  // Get workout to find its date
-  const workoutSnap = await getDoc(workoutRef);
-  if (workoutSnap.exists()) {
-    const workoutData = workoutSnap.data();
-    const workoutDate = workoutData.date as Timestamp;
-
-    // Find and delete lifts created within 5 minutes of the workout
-    const liftsRef = collection(db, 'users', userId, 'lifts');
-    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in ms
-    const startTime = new Timestamp(
-      workoutDate.seconds - 300,
-      workoutDate.nanoseconds
-    );
-    const endTime = new Timestamp(
-      workoutDate.seconds + 300,
-      workoutDate.nanoseconds
-    );
-
-    const liftsQuery = query(
-      liftsRef,
-      where('date', '>=', startTime),
-      where('date', '<=', endTime)
-    );
-
-    const liftsSnap = await getDocs(liftsQuery);
-
-    // Delete all matching lifts
-    const deletePromises = liftsSnap.docs.map(liftDoc =>
-      deleteDoc(doc(db, 'users', userId, 'lifts', liftDoc.id))
-    );
-    await Promise.all(deletePromises);
-  }
+  const deletePromises = liftsSnap.docs.map(liftDoc =>
+    deleteDoc(doc(db, 'users', userId, 'lifts', liftDoc.id))
+  );
+  await Promise.all(deletePromises);
 
   // Delete the workout
+  const workoutRef = doc(db, 'users', userId, 'workouts', workoutId);
   await deleteDoc(workoutRef);
 }
 

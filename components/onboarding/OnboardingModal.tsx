@@ -27,6 +27,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
   const { user } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [gender, setGender] = useState<Gender | null>(null);
   const [bodyweight, setBodyweight] = useState<string>('');
@@ -82,6 +83,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
       onComplete();
     } catch (error) {
       console.error('Error completing onboarding:', error);
+      setError('Erreur lors de l\'enregistrement. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
@@ -341,12 +343,16 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
               Suivant
             </Button>
           ) : (
-            <Button
-              onClick={handleComplete}
-              disabled={!canProceedStep4 || loading}
-            >
-              {loading ? 'Enregistrement...' : 'Terminer'}
-            </Button>
+            <div className="space-y-2">
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button
+                onClick={handleComplete}
+                disabled={!canProceedStep4 || loading}
+                className="w-full"
+              >
+                {loading ? 'Enregistrement...' : 'Terminer'}
+              </Button>
+            </div>
           )}
         </div>
       </DialogContent>

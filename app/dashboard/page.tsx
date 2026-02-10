@@ -17,6 +17,7 @@ import { DayPrescription } from '@/lib/training/types';
 import { Experience } from '@/types/user';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { StrengthLevel } from '@/types/analytics';
 
 // Text color variant derived from chart bar colors (bg-X -> text-X)
@@ -74,6 +75,7 @@ export default function DashboardPage() {
   const [showWorkoutDetails, setShowWorkoutDetails] = useState(false);
   const [skipping, setSkipping] = useState(false);
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
+  const [statInfo, setStatInfo] = useState<{ title: string; description: string } | null>(null);
 
   const weightUnit = userData?.preferences?.weightUnit || 'kg';
   const bodyweight = userData?.bodyweight || 80;
@@ -359,7 +361,13 @@ export default function DashboardPage() {
 
       {/* Stats compactes en ligne */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-3">
+        <button
+          className="bg-muted/30 rounded-xl p-3 flex items-center gap-3 text-left active:scale-95 transition-transform"
+          onClick={() => setStatInfo({
+            title: 'Total',
+            description: 'La somme de tes meilleurs PRs en Squat, Bench Press et Deadlift. C\'est le chiffre de référence en compétition de powerlifting pour comparer les athlètes d\'une même catégorie.',
+          })}
+        >
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <Trophy className="h-4 w-4 text-primary" />
           </div>
@@ -369,9 +377,15 @@ export default function DashboardPage() {
             </p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-3">
+        <button
+          className="bg-muted/30 rounded-xl p-3 flex items-center gap-3 text-left active:scale-95 transition-transform"
+          onClick={() => setStatInfo({
+            title: 'Best Session',
+            description: 'Le total le plus élevé réalisé en une seule séance (somme des meilleurs sets de chaque mouvement dans un même workout). Ça reflète ta meilleure performance globale sur une session.',
+          })}
+        >
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <Award className="h-4 w-4 text-primary" />
           </div>
@@ -381,7 +395,7 @@ export default function DashboardPage() {
             </p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Best Session</p>
           </div>
-        </div>
+        </button>
 
         <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -395,7 +409,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-3">
+        <button
+          className="bg-muted/30 rounded-xl p-3 flex items-center gap-3 text-left active:scale-95 transition-transform"
+          onClick={() => setStatInfo({
+            title: 'Score Wilks',
+            description: 'Un score qui normalise ta force par rapport à ton poids de corps. Il permet de comparer équitablement des athlètes de catégories différentes. Plus le score est élevé, plus tu es fort relativement à ton poids.',
+          })}
+        >
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <Scale className="h-4 w-4 text-primary" />
           </div>
@@ -405,7 +425,7 @@ export default function DashboardPage() {
             </p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Wilks</p>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Dernier entrainement */}
@@ -485,6 +505,17 @@ export default function DashboardPage() {
         }}
         loading={skipping}
       />
+
+      <Dialog open={statInfo !== null} onOpenChange={(open) => { if (!open) setStatInfo(null); }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>{statInfo?.title}</DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed">
+              {statInfo?.description}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

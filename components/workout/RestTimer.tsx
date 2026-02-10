@@ -107,6 +107,23 @@ export function RestTimer({ exerciseType, onTimerEnd }: RestTimerProps) {
   const rafRef = useRef<number | null>(null);
   const hasEndedRef = useRef(false);
 
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const sendNotification = useCallback(() => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Repos terminé !', {
+        body: 'Ton temps de repos est écoulé. C\'est reparti !',
+        icon: '/icon-192x192.png',
+        tag: 'rest-timer',
+      });
+    }
+  }, []);
+
   // Play beep sound using Web Audio API
   const playBeep = useCallback(() => {
     try {
@@ -172,6 +189,7 @@ export function RestTimer({ exerciseType, onTimerEnd }: RestTimerProps) {
         if (!hasEndedRef.current) {
           hasEndedRef.current = true;
           playBeep();
+          sendNotification();
           if (navigator.vibrate) {
             navigator.vibrate([200, 100, 200, 100, 200]);
           }
@@ -189,7 +207,7 @@ export function RestTimer({ exerciseType, onTimerEnd }: RestTimerProps) {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [isRunning, onTimerEnd, playBeep]);
+  }, [isRunning, onTimerEnd, playBeep, sendNotification]);
 
   // Recalculate on visibility change (tab switch, app switch)
   useEffect(() => {
@@ -203,6 +221,7 @@ export function RestTimer({ exerciseType, onTimerEnd }: RestTimerProps) {
           if (!hasEndedRef.current) {
             hasEndedRef.current = true;
             playBeep();
+            sendNotification();
             if (navigator.vibrate) {
               navigator.vibrate([200, 100, 200, 100, 200]);
             }
@@ -216,7 +235,7 @@ export function RestTimer({ exerciseType, onTimerEnd }: RestTimerProps) {
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [isRunning, onTimerEnd, playBeep]);
+  }, [isRunning, onTimerEnd, playBeep, sendNotification]);
 
   const handlePlayPause = useCallback(() => {
     if (timeLeft === 0) {

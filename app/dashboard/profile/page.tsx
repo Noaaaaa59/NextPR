@@ -128,6 +128,10 @@ export default function ProfilePage() {
 
   const handleThemeChange = (t: Theme) => {
     setTheme(t);
+    // Instant visual update without waiting for Firestore round-trip
+    const root = document.documentElement;
+    (['light', 'dark', 'forest', 'rose', 'ocean', 'sunset'] as const).forEach(c => root.classList.remove(c));
+    if (t !== 'light') root.classList.add(t);
     savePreferences({ theme: t });
   };
 
@@ -369,12 +373,12 @@ export default function ProfilePage() {
               </Label>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { value: 'light' as const, label: 'Clair', color: 'bg-gray-100' },
-                  { value: 'dark' as const, label: 'Sombre', color: 'bg-gray-800' },
-                  { value: 'forest' as const, label: 'Forêt', color: 'bg-green-700' },
+                  { value: 'light' as const, label: 'Clair', color: 'bg-red-500' },
+                  { value: 'dark' as const, label: 'Sombre', color: 'bg-red-600' },
+                  { value: 'forest' as const, label: 'Forêt', color: 'bg-emerald-500' },
                   { value: 'rose' as const, label: 'Rose', color: 'bg-pink-500' },
-                  { value: 'ocean' as const, label: 'Océan', color: 'bg-blue-600' },
-                  { value: 'sunset' as const, label: 'Sunset', color: 'bg-orange-500' },
+                  { value: 'ocean' as const, label: 'Océan', color: 'bg-cyan-500' },
+                  { value: 'sunset' as const, label: 'Sunset', color: 'bg-amber-500' },
                 ]).map((t) => (
                   <button
                     key={t.value}

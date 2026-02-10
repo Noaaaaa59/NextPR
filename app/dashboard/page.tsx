@@ -362,7 +362,7 @@ export default function DashboardPage() {
       {/* Stats compactes en ligne */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <button
-          className="rounded-xl p-3 flex items-center gap-3 text-left active:scale-95 transition-transform"
+          className="bg-card border bg-card border rounded-xl p-3 flex items-center gap-3 text-left active:scale-95 transition-transform"
           onClick={() => setStatInfo({
             title: 'Total',
             description: 'La somme de tes meilleurs PRs en Squat, Bench Press et Deadlift. C\'est le chiffre de référence en compétition de powerlifting pour comparer les athlètes d\'une même catégorie.',
@@ -380,7 +380,7 @@ export default function DashboardPage() {
         </button>
 
         <button
-          className="rounded-xl p-3 flex items-center gap-3 text-left active:scale-95 transition-transform"
+          className="bg-card border bg-card border rounded-xl p-3 flex items-center gap-3 text-left active:scale-95 transition-transform"
           onClick={() => setStatInfo({
             title: 'Best Session',
             description: 'Le total le plus élevé réalisé en une seule séance (somme des meilleurs sets de chaque mouvement dans un même workout). Ça reflète ta meilleure performance globale sur une session.',
@@ -397,7 +397,7 @@ export default function DashboardPage() {
           </div>
         </button>
 
-        <div className="rounded-xl p-3 flex items-center gap-3">
+        <div className="bg-card border rounded-xl p-3 flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <Hash className="h-4 w-4 text-primary" />
           </div>
@@ -410,7 +410,7 @@ export default function DashboardPage() {
         </div>
 
         <button
-          className="rounded-xl p-3 flex items-center gap-3 text-left active:scale-95 transition-transform"
+          className="bg-card border bg-card border rounded-xl p-3 flex items-center gap-3 text-left active:scale-95 transition-transform"
           onClick={() => setStatInfo({
             title: 'Score Wilks',
             description: 'Un score qui normalise ta force par rapport à ton poids de corps. Il permet de comparer équitablement des athlètes de catégories différentes. Plus le score est élevé, plus tu es fort relativement à ton poids.',

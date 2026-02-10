@@ -1,30 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calculator } from 'lucide-react';
 
-const AVAILABLE_PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
+const ALL_PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
 const BAR_WEIGHTS = [20, 15, 10];
-const MAX_PLATE_OPTIONS = [25, 20, 15, 10];
+const PLATE_PREFS_KEY = 'plateCalculatorPrefs';
 
 interface PlateResult {
   plate: number;
   count: number;
 }
 
-function calculatePlates(targetWeight: number, barWeight: number, maxPlate: number): PlateResult[] {
+interface PlatePrefs {
+  availablePlates: number[];
+  barWeight: number;
+}
+
+function loadPrefs(): PlatePrefs {
+  if (typeof window === 'undefined') return { availablePlates: [...ALL_PLATES], barWeight: 20 };
+  try {
+    const stored = localStorage.getItem(PLATE_PREFS_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return { availablePlates: [...ALL_PLATES], barWeight: 20 };
+}
+
+function savePrefs(prefs: PlatePrefs) {
+  try {
+    localStorage.setItem(PLATE_PREFS_KEY, JSON.stringify(prefs));
+  } catch {}
+}
+
+function calculatePlates(targetWeight: number, barWeight: number, availablePlates: number[]): PlateResult[] {
   const weightPerSide = (targetWeight - barWeight) / 2;
 
   if (weightPerSide <= 0) return [];
 
-  const availablePlates = AVAILABLE_PLATES.filter(p => p <= maxPlate);
+  const sorted = [...availablePlates].sort((a, b) => b - a);
   const result: PlateResult[] = [];
   let remaining = weightPerSide;
 
-  for (const plate of availablePlates) {
+  for (const plate of sorted) {
     if (remaining >= plate) {
       const count = Math.floor(remaining / plate);
       result.push({ plate, count });
@@ -81,13 +101,46 @@ function PlateVisual({ plates, side }: { plates: PlateResult[]; side: 'left' | '
 export default function ToolsPage() {
   const [targetWeight, setTargetWeight] = useState<string>('100');
   const [barWeight, setBarWeight] = useState<number>(20);
-  const [maxPlate, setMaxPlate] = useState<number>(25);
+  const [availablePlates, setAvailablePlates] = useState<number[]>([...ALL_PLATES]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Load prefs on mount
+  useEffect(() => {
+    const prefs = loadPrefs();
+    setAvailablePlates(prefs.availablePlates);
+    setBarWeight(prefs.barWeight);
+    setLoaded(true);
+  }, []);
+
+  // Save prefs on change
+  useEffect(() => {
+    if (!loaded) return;
+    savePrefs({ availablePlates, barWeight });
+  }, [availablePlates, barWeight, loaded]);
+
+  const togglePlate = (plate: number) => {
+    setAvailablePlates(prev =>
+      prev.includes(plate)
+        ? prev.filter(p => p !== plate)
+        : [...prev, plate].sort((a, b) => b - a)
+    );
+  };
 
   const weight = parseFloat(targetWeight) || 0;
-  const plates = calculatePlates(weight, barWeight, maxPlate);
+  const plates = calculatePlates(weight, barWeight, availablePlates);
   const totalPlateWeight = plates.reduce((sum, p) => sum + (p.plate * p.count * 2), 0);
   const achievableWeight = barWeight + totalPlateWeight;
   const isExact = achievableWeight === weight;
+
+  const plateColors: Record<number, string> = {
+    25: 'bg-red-500 border-red-500 text-white',
+    20: 'bg-blue-500 border-blue-500 text-white',
+    15: 'bg-yellow-400 border-yellow-400 text-black',
+    10: 'bg-green-500 border-green-500 text-white',
+    5: 'bg-white border-gray-300 text-black',
+    2.5: 'bg-gray-400 border-gray-400 text-white',
+    1.25: 'bg-gray-300 border-gray-300 text-black',
+  };
 
   return (
     <div className="container mx-auto p-4 max-w-2xl">
@@ -106,7 +159,7 @@ export default function ToolsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-destructive font-medium">Poids cible (kg)</Label>
               <Input
@@ -138,25 +191,28 @@ export default function ToolsPage() {
                 ))}
               </div>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label className="text-destructive font-medium">Disque max</Label>
-              <div className="flex gap-1">
-                {MAX_PLATE_OPTIONS.map((p) => (
+          <div className="space-y-2">
+            <Label className="text-destructive font-medium">Disques disponibles</Label>
+            <div className="flex flex-wrap gap-2">
+              {ALL_PLATES.map((plate) => {
+                const isSelected = availablePlates.includes(plate);
+                return (
                   <button
-                    key={p}
+                    key={plate}
                     type="button"
-                    onClick={() => setMaxPlate(p)}
-                    className={`flex-1 px-2 py-2 text-sm rounded-lg border transition-colors ${
-                      maxPlate === p
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background hover:bg-muted border-border'
+                    onClick={() => togglePlate(plate)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? plateColors[plate]
+                        : 'bg-background border-border text-muted-foreground opacity-40'
                     }`}
                   >
-                    {p}
+                    {plate}kg
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
 
@@ -207,6 +263,12 @@ export default function ToolsPage() {
           {weight > 0 && weight <= barWeight && (
             <div className="text-center py-6 text-muted-foreground">
               <p>Le poids cible est inférieur ou égal au poids de la barre ({barWeight}kg)</p>
+            </div>
+          )}
+
+          {availablePlates.length === 0 && weight > barWeight && (
+            <div className="text-center py-6 text-muted-foreground">
+              <p>Sélectionne au moins un disque</p>
             </div>
           )}
         </CardContent>

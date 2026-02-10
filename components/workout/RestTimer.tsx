@@ -17,6 +17,7 @@ const DEFAULT_REST_TIMES: Record<string, number> = {
 };
 
 const STORAGE_KEY = 'restTimerPreferences';
+const TIMER_STATE_KEY = 'restTimerState';
 
 function getStoredRestTimes(): Record<string, number> {
   if (typeof window === 'undefined') return {};
@@ -39,6 +40,35 @@ function saveRestTime(exerciseType: string, seconds: number) {
   }
 }
 
+interface TimerState {
+  endTime: number; // timestamp when timer should reach 0
+  totalTime: number;
+  isRunning: boolean;
+}
+
+function saveTimerState(state: TimerState | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (state) {
+      sessionStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
+    } else {
+      sessionStorage.removeItem(TIMER_STATE_KEY);
+    }
+  } catch {
+    // Ignore
+  }
+}
+
+function loadTimerState(): TimerState | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = sessionStorage.getItem(TIMER_STATE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
 function getDefaultTime(exerciseType: string): number {
   const stored = getStoredRestTimes();
   if (stored[exerciseType]) return stored[exerciseType];
@@ -52,11 +82,31 @@ function formatTime(seconds: number): string {
 }
 
 export function RestTimer({ exerciseType, onTimerEnd }: RestTimerProps) {
-  const [totalTime, setTotalTime] = useState(() => getDefaultTime(exerciseType));
-  const [timeLeft, setTimeLeft] = useState(() => getDefaultTime(exerciseType));
-  const [isRunning, setIsRunning] = useState(false);
+  const [totalTime, setTotalTime] = useState(() => {
+    const saved = loadTimerState();
+    return saved ? saved.totalTime : getDefaultTime(exerciseType);
+  });
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const saved = loadTimerState();
+    if (saved && saved.isRunning) {
+      const remaining = Math.ceil((saved.endTime - Date.now()) / 1000);
+      return Math.max(0, remaining);
+    }
+    return saved ? saved.totalTime : getDefaultTime(exerciseType);
+  });
+  const [isRunning, setIsRunning] = useState(() => {
+    const saved = loadTimerState();
+    if (saved && saved.isRunning) {
+      const remaining = Math.ceil((saved.endTime - Date.now()) / 1000);
+      return remaining > 0;
+    }
+    return false;
+  });
   const [showSaved, setShowSaved] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const endTimeRef = useRef<number>(0);
+  const rafRef = useRef<number | null>(null);
+  const hasEndedRef = useRef(false);
+
   // Play beep sound using Web Audio API
   const playBeep = useCallback(() => {
     try {
@@ -95,49 +145,104 @@ export function RestTimer({ exerciseType, onTimerEnd }: RestTimerProps) {
     }
   }, []);
 
-  // Cleanup on unmount
+  // Initialize endTimeRef from saved state
   useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    const saved = loadTimerState();
+    if (saved && saved.isRunning) {
+      endTimeRef.current = saved.endTime;
+    }
   }, []);
 
-  // Timer logic
+  // Timer tick using requestAnimationFrame + Date.now()
   useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            setIsRunning(false);
-            // Play beep sound
+    if (!isRunning) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      return;
+    }
+
+    hasEndedRef.current = false;
+
+    const tick = () => {
+      const remaining = Math.ceil((endTimeRef.current - Date.now()) / 1000);
+
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        setIsRunning(false);
+        saveTimerState(null);
+        if (!hasEndedRef.current) {
+          hasEndedRef.current = true;
+          playBeep();
+          if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200, 100, 200]);
+          }
+          onTimerEnd?.();
+        }
+        return;
+      }
+
+      setTimeLeft(remaining);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [isRunning, onTimerEnd, playBeep]);
+
+  // Recalculate on visibility change (tab switch, app switch)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isRunning) {
+        const remaining = Math.ceil((endTimeRef.current - Date.now()) / 1000);
+        if (remaining <= 0) {
+          setTimeLeft(0);
+          setIsRunning(false);
+          saveTimerState(null);
+          if (!hasEndedRef.current) {
+            hasEndedRef.current = true;
             playBeep();
-            // Vibrate if supported
             if (navigator.vibrate) {
               navigator.vibrate([200, 100, 200, 100, 200]);
             }
             onTimerEnd?.();
-            return 0;
           }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+        } else {
+          setTimeLeft(remaining);
+        }
+      }
     };
-  }, [isRunning, timeLeft, onTimerEnd, playBeep]);
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isRunning, onTimerEnd, playBeep]);
 
   const handlePlayPause = useCallback(() => {
     if (timeLeft === 0) {
+      // Reset and start
+      const newEndTime = Date.now() + totalTime * 1000;
+      endTimeRef.current = newEndTime;
       setTimeLeft(totalTime);
+      setIsRunning(true);
+      saveTimerState({ endTime: newEndTime, totalTime, isRunning: true });
+    } else if (isRunning) {
+      // Pause: save remaining time
+      setIsRunning(false);
+      saveTimerState({ endTime: endTimeRef.current, totalTime, isRunning: false });
+    } else {
+      // Resume: set new endTime based on current timeLeft
+      const newEndTime = Date.now() + timeLeft * 1000;
+      endTimeRef.current = newEndTime;
+      setIsRunning(true);
+      saveTimerState({ endTime: newEndTime, totalTime, isRunning: true });
     }
-    setIsRunning(prev => !prev);
-  }, [timeLeft, totalTime]);
+  }, [timeLeft, totalTime, isRunning]);
 
   const handleReset = useCallback(() => {
     setIsRunning(false);
     setTimeLeft(totalTime);
+    saveTimerState(null);
   }, [totalTime]);
 
   const adjustTime = useCallback((delta: number) => {

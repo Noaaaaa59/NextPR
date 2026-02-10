@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { signOut } from '@/lib/firebase/auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar, Trophy, Video, Star } from 'lucide-react';
+import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar, Trophy, Video, Star, Pencil } from 'lucide-react';
 import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, Theme, TrainingMaxPercentage, ProgramType } from '@/types/user';
 import { Palette } from 'lucide-react';
 import { getAllStandards } from '@/lib/calculations/standards';
@@ -22,11 +22,12 @@ type Experience = 'beginner' | 'intermediate' | 'advanced';
 type WeightUnit = 'kg' | 'lbs';
 
 export default function ProfilePage() {
-  const { user, userData } = useAuth();
+  const { user, userData, refreshUserData } = useAuth();
   const router = useRouter();
   const { truePRs, loading: prsLoading, refreshPRs } = useDashboardData(user?.uid);
 
-  const [isEditing, setIsEditing] = useState(false);
+  // isEditing only controls nom + genre
+  const [isEditingIdentity, setIsEditingIdentity] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [videoUploadLift, setVideoUploadLift] = useState<'squat' | 'bench' | 'deadlift' | null>(null);
@@ -48,30 +49,51 @@ export default function ProfilePage() {
     router.push('/login');
   };
 
-  const handleSave = async () => {
+  // Auto-save helper for individual fields
+  const saveField = async (updates: Record<string, unknown>) => {
     if (!user) return;
+    try {
+      await updateUserProfile(user.uid, updates);
+      await refreshUserData();
+    } catch (error) {
+      console.error('Error saving:', error);
+    }
+  };
 
+  const savePreferences = (overrides: Partial<{ weightUnit: WeightUnit; theme: Theme }>) => {
+    const prefs = {
+      weightUnit,
+      theme,
+      restTimerDefault: userData?.preferences?.restTimerDefault,
+      ...overrides,
+    };
+    saveField({ preferences: prefs });
+  };
+
+  const saveProgramSettings = (overrides: Record<string, unknown>) => {
+    const base = {
+      daysPerWeek,
+      durationWeeks,
+      priorityLift,
+      programType,
+      trainingMaxPercentage,
+      ...overrides,
+    };
+    if (base.programType === 'linear') base.daysPerWeek = 3;
+    saveField({ programSettings: base });
+  };
+
+  // Identity save (nom + genre only)
+  const handleSaveIdentity = async () => {
+    if (!user) return;
     setSaving(true);
     try {
       await updateUserProfile(user.uid, {
         displayName: displayName || userData?.displayName,
-        bodyweight: parseFloat(bodyweight) || 0,
-        gender: gender,
-        experience: experience,
-        preferences: {
-          weightUnit: weightUnit,
-          theme: theme,
-        },
-        programSettings: {
-          daysPerWeek: programType === 'linear' ? 3 : daysPerWeek,
-          durationWeeks,
-          priorityLift,
-          programType,
-          trainingMaxPercentage,
-        },
+        gender,
       });
-      setIsEditing(false);
-      window.location.reload();
+      setIsEditingIdentity(false);
+      await refreshUserData();
     } catch (error) {
       console.error('Error saving profile:', error);
       setSaveError('Erreur lors de la sauvegarde. Veuillez réessayer.');
@@ -80,19 +102,59 @@ export default function ProfilePage() {
     }
   };
 
-  const handleCancel = () => {
+  const handleCancelIdentity = () => {
     setDisplayName(userData?.displayName || '');
-    setBodyweight(userData?.bodyweight?.toString() || '');
     setGender(userData?.gender || 'male');
-    setExperience(userData?.experience as Experience || 'beginner');
-    setWeightUnit(userData?.preferences?.weightUnit as WeightUnit || 'kg');
-    setDaysPerWeek(userData?.programSettings?.daysPerWeek || 3);
-    setDurationWeeks(userData?.programSettings?.durationWeeks || 4);
-    setPriorityLift(userData?.programSettings?.priorityLift || 'squat');
-    setTheme(userData?.preferences?.theme || 'dark');
-    setProgramType(userData?.programSettings?.programType || '531');
-    setTrainingMaxPercentage(userData?.programSettings?.trainingMaxPercentage || 90);
-    setIsEditing(false);
+    setIsEditingIdentity(false);
+  };
+
+  // Auto-save handlers
+  const handleBodyweightBlur = () => {
+    const bw = parseFloat(bodyweight);
+    if (bw > 0 && bw !== userData?.bodyweight) {
+      saveField({ bodyweight: bw });
+    }
+  };
+
+  const handleExperienceChange = (exp: Experience) => {
+    setExperience(exp);
+    saveField({ experience: exp });
+  };
+
+  const handleWeightUnitChange = (unit: WeightUnit) => {
+    setWeightUnit(unit);
+    savePreferences({ weightUnit: unit });
+  };
+
+  const handleThemeChange = (t: Theme) => {
+    setTheme(t);
+    savePreferences({ theme: t });
+  };
+
+  const handleProgramTypeChange = (type: ProgramType) => {
+    setProgramType(type);
+    if (type === 'linear') setDaysPerWeek(3);
+    saveProgramSettings({ programType: type });
+  };
+
+  const handleDurationChange = (weeks: 4 | 6) => {
+    setDurationWeeks(weeks);
+    saveProgramSettings({ durationWeeks: weeks });
+  };
+
+  const handleDaysChange = (days: 3 | 4 | 5) => {
+    setDaysPerWeek(days);
+    saveProgramSettings({ daysPerWeek: days });
+  };
+
+  const handlePriorityChange = (lift: PriorityLift) => {
+    setPriorityLift(lift);
+    saveProgramSettings({ priorityLift: lift });
+  };
+
+  const handleTMChange = (tm: TrainingMaxPercentage) => {
+    setTrainingMaxPercentage(tm);
+    saveProgramSettings({ trainingMaxPercentage: tm });
   };
 
   const experienceOptions: { value: Experience; label: string }[] = [
@@ -112,28 +174,11 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto p-4 max-w-3xl">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">Profil</h1>
-          <p className="text-sm text-muted-foreground">
-            Gérez vos informations et préférences
-          </p>
-        </div>
-        {!isEditing ? (
-          <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
-            Modifier
-          </Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button onClick={handleCancel} variant="outline" size="sm">
-              Annuler
-            </Button>
-            <Button onClick={handleSave} size="sm" disabled={saving}>
-              <Save className="h-4 w-4 mr-1" />
-              {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-            </Button>
-          </div>
-        )}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-1">Profil</h1>
+        <p className="text-sm text-muted-foreground">
+          Gérez vos informations et préférences
+        </p>
       </div>
 
       {saveError && (
@@ -143,18 +188,36 @@ export default function ProfilePage() {
       )}
 
       <div className="space-y-4">
+        {/* Informations personnelles */}
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Informations personnelles</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Informations personnelles</CardTitle>
+              </div>
+              {!isEditingIdentity ? (
+                <Button onClick={() => setIsEditingIdentity(true)} variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <div className="flex gap-1">
+                  <Button onClick={handleCancelIdentity} variant="ghost" size="sm" className="h-7 text-xs">
+                    Annuler
+                  </Button>
+                  <Button onClick={handleSaveIdentity} size="sm" className="h-7 text-xs" disabled={saving}>
+                    <Save className="h-3 w-3 mr-1" />
+                    {saving ? '...' : 'OK'}
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="displayName" className="text-destructive font-medium">Nom</Label>
-                {isEditing ? (
+                {isEditingIdentity ? (
                   <Input
                     id="displayName"
                     value={displayName}
@@ -175,7 +238,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-destructive font-medium">Genre</Label>
-                {isEditing ? (
+                {isEditingIdentity ? (
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -212,22 +275,17 @@ export default function ProfilePage() {
                   <Scale className="h-3 w-3" />
                   Poids de corps ({weightUnit})
                 </Label>
-                {isEditing ? (
-                  <Input
-                    id="bodyweight"
-                    type="number"
-                    value={bodyweight}
-                    onChange={(e) => setBodyweight(e.target.value)}
-                    placeholder="Ex: 80"
-                    min="30"
-                    max="200"
-                    step="0.1"
-                  />
-                ) : (
-                  <p className="text-sm font-medium py-2">
-                    {userData?.bodyweight ? `${userData.bodyweight} ${weightUnit}` : '—'}
-                  </p>
-                )}
+                <Input
+                  id="bodyweight"
+                  type="number"
+                  value={bodyweight}
+                  onChange={(e) => setBodyweight(e.target.value)}
+                  onBlur={handleBodyweightBlur}
+                  placeholder="Ex: 80"
+                  min="30"
+                  max="200"
+                  step="0.1"
+                />
               </div>
             </div>
 
@@ -245,32 +303,27 @@ export default function ProfilePage() {
                 <Dumbbell className="h-3 w-3" />
                 Expérience
               </Label>
-              {isEditing ? (
-                <div className="flex flex-wrap gap-2">
-                  {experienceOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setExperience(opt.value)}
-                      className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
-                        experience === opt.value
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted border-border'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm font-medium py-2 capitalize">
-                  {experienceOptions.find((o) => o.value === userData?.experience)?.label || '—'}
-                </p>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {experienceOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => handleExperienceChange(opt.value)}
+                    className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
+                      experience === opt.value
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Préférences - toujours interactif */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
@@ -282,36 +335,30 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-destructive font-medium">Unité de poids</Label>
-                {isEditing ? (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setWeightUnit('kg')}
-                      className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
-                        weightUnit === 'kg'
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted border-border'
-                      }`}
-                    >
-                      Kilogrammes (kg)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setWeightUnit('lbs')}
-                      className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
-                        weightUnit === 'lbs'
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted border-border'
-                      }`}
-                    >
-                      Livres (lbs)
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-sm font-medium py-2">
-                    {weightUnit === 'kg' ? 'Kilogrammes (kg)' : 'Livres (lbs)'}
-                  </p>
-                )}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleWeightUnitChange('kg')}
+                    className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                      weightUnit === 'kg'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    Kilogrammes (kg)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleWeightUnitChange('lbs')}
+                    className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                      weightUnit === 'lbs'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    Livres (lbs)
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -320,45 +367,35 @@ export default function ProfilePage() {
                 <Palette className="h-3 w-3" />
                 Thème
               </Label>
-              {isEditing ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { value: 'light' as const, label: 'Clair', color: 'bg-gray-100' },
-                    { value: 'dark' as const, label: 'Sombre', color: 'bg-gray-800' },
-                    { value: 'forest' as const, label: 'Forêt', color: 'bg-green-700' },
-                    { value: 'rose' as const, label: 'Rose', color: 'bg-pink-500' },
-                    { value: 'ocean' as const, label: 'Océan', color: 'bg-blue-600' },
-                    { value: 'sunset' as const, label: 'Sunset', color: 'bg-orange-500' },
-                  ]).map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setTheme(t.value)}
-                      className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                        theme === t.value
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted border-border'
-                      }`}
-                    >
-                      <span className={`w-4 h-4 rounded-full ${t.color}`} />
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {theme === 'light' ? 'Clair' :
-                   theme === 'dark' ? 'Sombre' :
-                   theme === 'forest' ? 'Forêt' :
-                   theme === 'rose' ? 'Rose' :
-                   theme === 'ocean' ? 'Océan' :
-                   theme === 'sunset' ? 'Sunset' : 'Sombre'}
-                </p>
-              )}
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: 'light' as const, label: 'Clair', color: 'bg-gray-100' },
+                  { value: 'dark' as const, label: 'Sombre', color: 'bg-gray-800' },
+                  { value: 'forest' as const, label: 'Forêt', color: 'bg-green-700' },
+                  { value: 'rose' as const, label: 'Rose', color: 'bg-pink-500' },
+                  { value: 'ocean' as const, label: 'Océan', color: 'bg-blue-600' },
+                  { value: 'sunset' as const, label: 'Sunset', color: 'bg-orange-500' },
+                ]).map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => handleThemeChange(t.value)}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      theme === t.value
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    <span className={`w-4 h-4 rounded-full ${t.color}`} />
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Programme - toujours interactif */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
@@ -367,129 +404,104 @@ export default function ProfilePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {isEditing ? (
-              <div className="space-y-2">
-                <Label className="text-destructive font-medium">Méthode</Label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setProgramType('531')}
-                    className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
-                      programType === '531'
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background hover:bg-muted border-border'
-                    }`}
-                  >
-                    5/3/1
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setProgramType('linear')}
-                    className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
-                      programType === 'linear'
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background hover:bg-muted border-border'
-                    }`}
-                  >
-                    Linéaire
-                  </button>
-                </div>
+            <div className="space-y-2">
+              <Label className="text-destructive font-medium">Méthode</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleProgramTypeChange('531')}
+                  className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                    programType === '531'
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-muted border-border'
+                  }`}
+                >
+                  5/3/1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProgramTypeChange('linear')}
+                  className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                    programType === 'linear'
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-muted border-border'
+                  }`}
+                >
+                  Linéaire
+                </button>
               </div>
-            ) : (
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-sm">
-                  <span className="text-muted-foreground">Méthode : </span>
-                  <span className="font-bold text-primary">
-                    {(userData?.programSettings?.programType || '531') === 'linear'
-                      ? 'Linéaire (Heavy/Medium/Light)'
-                      : '5/3/1 de Jim Wendler'}
-                  </span>
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {(userData?.programSettings?.programType || '531') === 'linear'
-                    ? `Training Max (${trainingMaxPercentage}% du 1RM) - 3 jours/semaine`
-                    : `Training Max (${trainingMaxPercentage}% du 1RM) + BBB (Boring But Big)`}
-                </p>
-              </div>
-            )}
+              <p className="text-xs text-muted-foreground">
+                {programType === 'linear'
+                  ? 'Heavy/Medium/Light - 3 jours/semaine avec rotation des 3 lifts'
+                  : 'Wendler - Progression ondulatoire avec BBB (Boring But Big)'}
+              </p>
+            </div>
 
             <div className="space-y-2">
               <Label className="text-destructive font-medium">Durée du cycle</Label>
-              {isEditing ? (
+              <div className="flex gap-2">
+                {([4, 6] as const).map((weeks) => (
+                  <button
+                    key={weeks}
+                    type="button"
+                    onClick={() => handleDurationChange(weeks)}
+                    className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                      durationWeeks === weeks
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    {weeks} semaines
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {programType === '531' && (
+              <div className="space-y-2">
+                <Label className="text-destructive font-medium">Jours par semaine</Label>
                 <div className="flex gap-2">
-                  {([4, 6] as const).map((weeks) => (
+                  {([3, 4, 5] as const).map((days) => (
                     <button
-                      key={weeks}
+                      key={days}
                       type="button"
-                      onClick={() => setDurationWeeks(weeks)}
+                      onClick={() => handleDaysChange(days)}
                       className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
-                        durationWeeks === weeks
+                        daysPerWeek === days
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-background hover:bg-muted border-border'
                       }`}
                     >
-                      {weeks} semaines
+                      {days} jours
                     </button>
                   ))}
                 </div>
-              ) : (
-                <p className="text-sm font-medium py-2">{userData?.programSettings?.durationWeeks || 4} semaines</p>
-              )}
-            </div>
-
-            {(isEditing ? programType === '531' : (userData?.programSettings?.programType || '531') === '531') && (
-              <div className="space-y-2">
-                <Label className="text-destructive font-medium">Jours par semaine</Label>
-                {isEditing ? (
-                  <div className="flex gap-2">
-                    {([3, 4, 5] as const).map((days) => (
-                      <button
-                        key={days}
-                        type="button"
-                        onClick={() => setDaysPerWeek(days)}
-                        className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
-                          daysPerWeek === days
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background hover:bg-muted border-border'
-                        }`}
-                      >
-                        {days} jours
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm font-medium py-2">{userData?.programSettings?.daysPerWeek || 3} jours/semaine</p>
-                )}
               </div>
             )}
 
-            {(isEditing ? programType === '531' && daysPerWeek > 3 : (userData?.programSettings?.programType || '531') === '531' && (userData?.programSettings?.daysPerWeek || 3) > 3) && (
+            {programType === '531' && daysPerWeek > 3 && (
               <div className="space-y-2">
                 <Label className="text-destructive font-medium">Lift prioritaire</Label>
-                {isEditing ? (
-                  <div className="flex gap-2">
-                    {([
-                      { value: 'squat' as const, label: 'Squat' },
-                      { value: 'bench' as const, label: 'Bench' },
-                      { value: 'deadlift' as const, label: 'Deadlift' },
-                    ]).map((lift) => (
-                      <button
-                        key={lift.value}
-                        type="button"
-                        onClick={() => setPriorityLift(lift.value)}
-                        className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
-                          priorityLift === lift.value
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background hover:bg-muted border-border'
-                        }`}
-                      >
-                        {lift.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm font-medium py-2 capitalize">{userData?.programSettings?.priorityLift || 'squat'}</p>
-                )}
+                <div className="flex gap-2">
+                  {([
+                    { value: 'squat' as const, label: 'Squat' },
+                    { value: 'bench' as const, label: 'Bench' },
+                    { value: 'deadlift' as const, label: 'Deadlift' },
+                  ]).map((lift) => (
+                    <button
+                      key={lift.value}
+                      type="button"
+                      onClick={() => handlePriorityChange(lift.value)}
+                      className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                        priorityLift === lift.value
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border'
+                      }`}
+                    >
+                      {lift.label}
+                    </button>
+                  ))}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Ce lift sera travaillé {daysPerWeek === 4 ? '3' : '4'}x/semaine
                 </p>
@@ -498,26 +510,22 @@ export default function ProfilePage() {
 
             <div className="space-y-2">
               <Label className="text-destructive font-medium">Training Max (%)</Label>
-              {isEditing ? (
-                <div className="flex gap-2">
-                  {([90, 95, 100] as const).map((pct) => (
-                    <button
-                      key={pct}
-                      type="button"
-                      onClick={() => setTrainingMaxPercentage(pct)}
-                      className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
-                        trainingMaxPercentage === pct
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted border-border'
-                      }`}
-                    >
-                      {pct}%
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm font-medium py-2">{userData?.programSettings?.trainingMaxPercentage || 90}%</p>
-              )}
+              <div className="flex gap-2">
+                {([90, 95, 100] as const).map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => handleTMChange(pct)}
+                    className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                      trainingMaxPercentage === pct
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
               <p className="text-xs text-muted-foreground">
                 {trainingMaxPercentage === 90
                   ? 'Recommandé pour la plupart des lifters. Marge de sécurité maximale.'
@@ -529,7 +537,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {isEditing && eliteStandards && (
+        {eliteStandards && (
           <Card className="border-primary/30 bg-primary/5">
             <CardContent className="p-4">
               <p className="text-sm">

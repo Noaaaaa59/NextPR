@@ -1,5 +1,5 @@
 export type TrainingGoal = 'strength' | 'hypertrophy' | 'peaking' | 'general';
-export type CycleType = '531';
+export type CycleType = '531' | 'linear';
 
 export interface Maxes {
   squat: number;

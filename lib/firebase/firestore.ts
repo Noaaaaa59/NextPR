@@ -499,6 +499,7 @@ export async function completeOnboarding(
       daysPerWeek: 3 | 4 | 5;
       durationWeeks: 4 | 6;
       priorityLift: 'squat' | 'bench' | 'deadlift';
+      programType?: '531' | 'linear';
     };
   },
   prs: { squat: number; bench: number; deadlift: number }

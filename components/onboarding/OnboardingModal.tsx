@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Experience, Gender, PriorityLift } from '@/types/user';
+import { Experience, Gender, PriorityLift, ProgramType } from '@/types/user';
 import { completeOnboarding } from '@/lib/firebase/firestore';
 import { useAuth } from '@/components/auth/AuthProvider';
 
@@ -33,6 +33,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
   const [bodyweight, setBodyweight] = useState<string>('');
   const [experience, setExperience] = useState<Experience | null>(null);
   const [prs, setPRs] = useState({ squat: '', bench: '', deadlift: '' });
+  const [programType, setProgramType] = useState<ProgramType>('531');
   const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5>(3);
   const [durationWeeks, setDurationWeeks] = useState<4 | 6>(4);
   const [priorityLift, setPriorityLift] = useState<PriorityLift>('squat');
@@ -69,9 +70,10 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
           bodyweight: parseFloat(bodyweight),
           experience,
           programSettings: {
-            daysPerWeek,
+            daysPerWeek: programType === 'linear' ? 3 : daysPerWeek,
             durationWeeks,
             priorityLift,
+            programType,
           },
         },
         {
@@ -244,8 +246,40 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
         {step === 4 && (
           <div className="space-y-6">
             <p className="text-sm text-muted-foreground">
-              Configure ton programme d'entraînement
+              Configure ton programme d&apos;entraînement
             </p>
+
+            <div className="space-y-3">
+              <Label>Méthode d&apos;entraînement</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Card
+                  className={`cursor-pointer transition-all ${
+                    programType === '531'
+                      ? 'border-primary ring-2 ring-primary/20'
+                      : 'hover:border-primary/50'
+                  }`}
+                  onClick={() => setProgramType('531')}
+                >
+                  <CardContent className="p-3 text-center">
+                    <p className="text-lg font-bold">5/3/1</p>
+                    <p className="text-xs text-muted-foreground">Wendler - Progression ondulatoire</p>
+                  </CardContent>
+                </Card>
+                <Card
+                  className={`cursor-pointer transition-all ${
+                    programType === 'linear'
+                      ? 'border-primary ring-2 ring-primary/20'
+                      : 'hover:border-primary/50'
+                  }`}
+                  onClick={() => setProgramType('linear')}
+                >
+                  <CardContent className="p-3 text-center">
+                    <p className="text-lg font-bold">Linéaire</p>
+                    <p className="text-xs text-muted-foreground">Heavy / Medium / Light</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
 
             <div className="space-y-3">
               <Label>Durée du cycle</Label>
@@ -269,28 +303,30 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label>Jours par semaine</Label>
-              <div className="grid grid-cols-3 gap-3">
-                {([3, 4, 5] as const).map((days) => (
-                  <Card
-                    key={days}
-                    className={`cursor-pointer transition-all ${
-                      daysPerWeek === days
-                        ? 'border-primary ring-2 ring-primary/20'
-                        : 'hover:border-primary/50'
-                    }`}
-                    onClick={() => setDaysPerWeek(days)}
-                  >
-                    <CardContent className="p-3 text-center">
-                      <p className="text-lg font-bold">{days}J</p>
-                    </CardContent>
-                  </Card>
-                ))}
+            {programType === '531' && (
+              <div className="space-y-3">
+                <Label>Jours par semaine</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  {([3, 4, 5] as const).map((days) => (
+                    <Card
+                      key={days}
+                      className={`cursor-pointer transition-all ${
+                        daysPerWeek === days
+                          ? 'border-primary ring-2 ring-primary/20'
+                          : 'hover:border-primary/50'
+                      }`}
+                      onClick={() => setDaysPerWeek(days)}
+                    >
+                      <CardContent className="p-3 text-center">
+                        <p className="text-lg font-bold">{days}J</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {daysPerWeek > 3 && (
+            {programType === '531' && daysPerWeek > 3 && (
               <div className="space-y-3">
                 <Label>Lift prioritaire (fréquence +)</Label>
                 <div className="grid grid-cols-3 gap-2">
@@ -316,6 +352,14 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Ce lift sera travaillé {daysPerWeek === 4 ? '3' : '4'}x/semaine au lieu de 2x
+                </p>
+              </div>
+            )}
+
+            {programType === 'linear' && (
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-xs text-muted-foreground">
+                  3 jours/semaine fixes. Chaque lift est travaillé à 3 intensités différentes par semaine.
                 </p>
               </div>
             )}

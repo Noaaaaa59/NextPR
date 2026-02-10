@@ -1,4 +1,4 @@
-import { Experience, PriorityLift } from '@/types/user';
+import { Experience, PriorityLift, ProgramType } from '@/types/user';
 import {
   CycleType,
   SetPrescription,
@@ -11,6 +11,7 @@ import {
 import {
   WEEK_531,
   WEEK_531_EXTENDED,
+  LINEAR_SETS,
   calculateWorkingWeight,
   calculateWorkingWeight531,
 } from './percentages';
@@ -28,6 +29,7 @@ interface UserProfile {
   durationWeeks: 4 | 6;
   priorityLift: PriorityLift;
   trainingMaxPercentage?: number;
+  programType?: ProgramType;
 }
 
 interface Maxes {
@@ -266,11 +268,105 @@ function getReasonings(daysPerWeek: number = 3, priorityLift: PriorityLift = 'sq
   return reasons;
 }
 
+// === Linéaire: Heavy/Medium/Light rotation ===
+
+const LINEAR_DAY_SPLITS: { heavy: Lift; medium: Lift; light: Lift }[] = [
+  { heavy: 'bench', medium: 'deadlift', light: 'squat' },   // Jour A
+  { heavy: 'squat', medium: 'bench', light: 'deadlift' },   // Jour B
+  { heavy: 'deadlift', medium: 'squat', light: 'bench' },   // Jour C
+];
+
+function generateLinearDay(
+  dayIndex: number,
+  maxes: Maxes,
+  tmPercentage: number = 90
+): DayPrescription {
+  const liftNames: Record<Lift, string> = {
+    squat: 'Squat',
+    bench: 'Bench Press',
+    deadlift: 'Deadlift',
+  };
+
+  const split = LINEAR_DAY_SPLITS[dayIndex];
+  const intensities: ('heavy' | 'medium' | 'light')[] = ['heavy', 'medium', 'light'];
+  const dayLabel = ['A', 'B', 'C'][dayIndex];
+
+  const exercises: ExercisePrescription[] = intensities.map((intensity) => {
+    const lift = split[intensity];
+    return {
+      name: liftNames[lift],
+      type: lift,
+      sets: LINEAR_SETS[intensity].map((set) => ({
+        ...set,
+        weight: calculateWorkingWeight531(maxes[lift], set.percentage, tmPercentage),
+      })),
+      notes: intensity === 'heavy' ? '3x1 @ 95% TM'
+        : intensity === 'medium' ? '3x3 @ 90% TM'
+        : '5x5 @ 80% TM',
+    };
+  });
+
+  return {
+    dayNumber: dayIndex + 1,
+    name: `Jour ${dayLabel} - ${liftNames[split.heavy]} + ${liftNames[split.medium]} + ${liftNames[split.light]}`,
+    mainLift: split.heavy,
+    exercises,
+  };
+}
+
+function generateLinearWeek(
+  weekNumber: number,
+  duration: number,
+  maxes: Maxes,
+  tmPercentage: number = 90
+): WeekPrescription {
+  const isLastWeek = weekNumber === duration;
+
+  if (isLastWeek) {
+    // TEST PR week: reuse 5/3/1 test week logic with 3-day split
+    const weekSets = getWeekSets(duration, duration);
+    const daySplits = getDaySplits(3, 'squat');
+    const days: DayPrescription[] = daySplits.map((split, index) =>
+      generateDay(index + 1, split.primary, split.secondary, maxes, weekSets, false, tmPercentage)
+    );
+    return {
+      weekNumber,
+      name: `Semaine ${weekNumber} - TEST PR 🎯`,
+      isDeload: false,
+      days,
+      focus: '🎯 TEST DE PR - Singles montants jusqu\'à 102.5% pour battre ton record!',
+    };
+  }
+
+  const days: DayPrescription[] = [0, 1, 2].map((i) =>
+    generateLinearDay(i, maxes, tmPercentage)
+  );
+
+  return {
+    weekNumber,
+    name: `Semaine ${weekNumber} - Linéaire`,
+    isDeload: false,
+    days,
+    focus: 'Heavy (3x1 @ 95%) / Medium (3x3 @ 90%) / Light (5x5 @ 80%) - Rotation des 3 lifts.',
+  };
+}
+
+function getLinearDescription(tmPercentage: number = 90): string {
+  return `Programme Linéaire Heavy/Medium/Light. Basé sur le Training Max (${tmPercentage}% du 1RM). 3 jours/semaine avec rotation des 3 lifts à intensités différentes.`;
+}
+
+function getLinearReasonings(tmPercentage: number = 90): string[] {
+  return [
+    'Chaque lift est travaillé 3x/semaine à des intensités différentes (Heavy, Medium, Light).',
+    `Basé sur le Training Max (${tmPercentage}% du 1RM) pour garantir une progression durable.`,
+    'Heavy (3x1 @ 95% TM) pour la force maximale, Medium (3x3 @ 90% TM) pour la puissance, Light (5x5 @ 80% TM) pour le volume.',
+    'Progression: +5kg squat/deadlift, +2.5kg bench par cycle.',
+  ];
+}
+
 export function generateProgram(profile: UserProfile): ProgramRecommendation {
-  const cycleType: CycleType = '531';
+  const programType = profile.programType || '531';
   const duration = profile.durationWeeks || 4;
-  const daysPerWeek = profile.daysPerWeek || 3;
-  const priorityLift = profile.priorityLift || 'squat';
   const tmPercentage = profile.trainingMaxPercentage || 90;
 
   const maxes: Maxes = {
@@ -279,6 +375,34 @@ export function generateProgram(profile: UserProfile): ProgramRecommendation {
     deadlift: profile.currentMaxes.deadlift,
   };
 
+  if (programType === 'linear') {
+    const weeks: WeekPrescription[] = [];
+    for (let i = 1; i <= duration; i++) {
+      weeks.push(generateLinearWeek(i, duration, maxes, tmPercentage));
+    }
+
+    const program: GeneratedProgram = {
+      name: `Linéaire ${duration}S`,
+      type: 'linear',
+      goal: 'strength',
+      duration,
+      maxes,
+      weeks,
+      createdAt: new Date(),
+      description: getLinearDescription(tmPercentage),
+    };
+
+    return {
+      program,
+      reasoning: getLinearReasonings(tmPercentage),
+      expectedProgress: { squat: 5, bench: 2.5, deadlift: 5 },
+    };
+  }
+
+  // 5/3/1
+  const daysPerWeek = profile.daysPerWeek || 3;
+  const priorityLift = profile.priorityLift || 'squat';
+
   const weeks: WeekPrescription[] = [];
   for (let i = 1; i <= duration; i++) {
     weeks.push(generateWeek(i, maxes, duration, daysPerWeek, priorityLift, tmPercentage));
@@ -286,7 +410,7 @@ export function generateProgram(profile: UserProfile): ProgramRecommendation {
 
   const program: GeneratedProgram = {
     name: `5/3/1 ${duration}S - ${daysPerWeek}J/sem`,
-    type: cycleType,
+    type: '531',
     goal: 'strength',
     duration,
     maxes,

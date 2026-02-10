@@ -10,7 +10,7 @@ import { signOut } from '@/lib/firebase/auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar, Trophy, Video, Star } from 'lucide-react';
-import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, Theme, TrainingMaxPercentage } from '@/types/user';
+import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, Theme, TrainingMaxPercentage, ProgramType } from '@/types/user';
 import { Palette } from 'lucide-react';
 import { getAllStandards } from '@/lib/calculations/standards';
 import { useDashboardData } from '@/lib/hooks/useFirestoreData';
@@ -40,6 +40,7 @@ export default function ProfilePage() {
   const [durationWeeks, setDurationWeeks] = useState<4 | 6>(userData?.programSettings?.durationWeeks || 4);
   const [priorityLift, setPriorityLift] = useState<PriorityLift>(userData?.programSettings?.priorityLift || 'squat');
   const [theme, setTheme] = useState<Theme>(userData?.preferences?.theme || 'dark');
+  const [programType, setProgramType] = useState<ProgramType>(userData?.programSettings?.programType || '531');
   const [trainingMaxPercentage, setTrainingMaxPercentage] = useState<TrainingMaxPercentage>(userData?.programSettings?.trainingMaxPercentage || 90);
 
   const handleSignOut = async () => {
@@ -62,10 +63,10 @@ export default function ProfilePage() {
           theme: theme,
         },
         programSettings: {
-          daysPerWeek,
+          daysPerWeek: programType === 'linear' ? 3 : daysPerWeek,
           durationWeeks,
           priorityLift,
-          programType: '531',
+          programType,
           trainingMaxPercentage,
         },
       });
@@ -89,6 +90,7 @@ export default function ProfilePage() {
     setDurationWeeks(userData?.programSettings?.durationWeeks || 4);
     setPriorityLift(userData?.programSettings?.priorityLift || 'squat');
     setTheme(userData?.preferences?.theme || 'dark');
+    setProgramType(userData?.programSettings?.programType || '531');
     setTrainingMaxPercentage(userData?.programSettings?.trainingMaxPercentage || 90);
     setIsEditing(false);
   };
@@ -365,15 +367,51 @@ export default function ProfilePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-3 bg-muted/50 rounded-lg">
-              <p className="text-sm">
-                <span className="text-muted-foreground">Méthode : </span>
-                <span className="font-bold text-primary">5/3/1 de Jim Wendler</span>
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Training Max ({trainingMaxPercentage}% du 1RM) + BBB (Boring But Big)
-              </p>
-            </div>
+            {isEditing ? (
+              <div className="space-y-2">
+                <Label className="text-destructive font-medium">Méthode</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setProgramType('531')}
+                    className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                      programType === '531'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    5/3/1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProgramType('linear')}
+                    className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                      programType === 'linear'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    Linéaire
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Méthode : </span>
+                  <span className="font-bold text-primary">
+                    {(userData?.programSettings?.programType || '531') === 'linear'
+                      ? 'Linéaire (Heavy/Medium/Light)'
+                      : '5/3/1 de Jim Wendler'}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {(userData?.programSettings?.programType || '531') === 'linear'
+                    ? `Training Max (${trainingMaxPercentage}% du 1RM) - 3 jours/semaine`
+                    : `Training Max (${trainingMaxPercentage}% du 1RM) + BBB (Boring But Big)`}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-destructive font-medium">Durée du cycle</Label>
@@ -399,31 +437,33 @@ export default function ProfilePage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-destructive font-medium">Jours par semaine</Label>
-              {isEditing ? (
-                <div className="flex gap-2">
-                  {([3, 4, 5] as const).map((days) => (
-                    <button
-                      key={days}
-                      type="button"
-                      onClick={() => setDaysPerWeek(days)}
-                      className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
-                        daysPerWeek === days
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted border-border'
-                      }`}
-                    >
-                      {days} jours
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm font-medium py-2">{userData?.programSettings?.daysPerWeek || 3} jours/semaine</p>
-              )}
-            </div>
+            {(isEditing ? programType === '531' : (userData?.programSettings?.programType || '531') === '531') && (
+              <div className="space-y-2">
+                <Label className="text-destructive font-medium">Jours par semaine</Label>
+                {isEditing ? (
+                  <div className="flex gap-2">
+                    {([3, 4, 5] as const).map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => setDaysPerWeek(days)}
+                        className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                          daysPerWeek === days
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background hover:bg-muted border-border'
+                        }`}
+                      >
+                        {days} jours
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium py-2">{userData?.programSettings?.daysPerWeek || 3} jours/semaine</p>
+                )}
+              </div>
+            )}
 
-            {(isEditing ? daysPerWeek > 3 : (userData?.programSettings?.daysPerWeek || 3) > 3) && (
+            {(isEditing ? programType === '531' && daysPerWeek > 3 : (userData?.programSettings?.programType || '531') === '531' && (userData?.programSettings?.daysPerWeek || 3) > 3) && (
               <div className="space-y-2">
                 <Label className="text-destructive font-medium">Lift prioritaire</Label>
                 {isEditing ? (

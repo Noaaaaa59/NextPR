@@ -61,6 +61,7 @@ export default function ProgramsPage() {
         durationWeeks: programSettings.durationWeeks,
         priorityLift: programSettings.priorityLift,
         trainingMaxPercentage: programSettings.trainingMaxPercentage,
+        programType: programSettings.programType,
       })
     : null;
 

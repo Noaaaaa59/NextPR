@@ -210,6 +210,27 @@ export const WEEK_531_EXTENDED: Record<number, { heavy: SetPrescription[]; light
   },
 };
 
+// Linéaire - Heavy/Medium/Light (même structure chaque semaine)
+export const LINEAR_SETS: Record<'heavy' | 'medium' | 'light', SetPrescription[]> = {
+  heavy: [
+    { reps: 1, percentage: 95 },
+    { reps: 1, percentage: 95 },
+    { reps: 1, percentage: 95 },
+  ],
+  medium: [
+    { reps: 3, percentage: 90 },
+    { reps: 3, percentage: 90 },
+    { reps: 3, percentage: 90 },
+  ],
+  light: [
+    { reps: 5, percentage: 80 },
+    { reps: 5, percentage: 80 },
+    { reps: 5, percentage: 80 },
+    { reps: 5, percentage: 80 },
+    { reps: 5, percentage: 80 },
+  ],
+};
+
 export function roundToPlate(weight: number, increment: number = 2.5): number {
   // Toujours arrondir vers le bas pour garantir une progression visible entre les semaines
   return Math.floor(weight / increment) * increment;

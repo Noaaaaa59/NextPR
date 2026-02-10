@@ -39,7 +39,7 @@ export interface ProgramProgress {
 }
 
 export type PriorityLift = 'squat' | 'bench' | 'deadlift';
-export type ProgramType = '531';
+export type ProgramType = '531' | 'linear';
 
 export type TrainingMaxPercentage = 90 | 95 | 100;
 

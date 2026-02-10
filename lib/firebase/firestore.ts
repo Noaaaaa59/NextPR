@@ -47,6 +47,45 @@ export async function updateWorkout(
 ): Promise<void> {
   const workoutRef = doc(db, 'users', userId, 'workouts', workoutId);
   await updateDoc(workoutRef, data as DocumentData);
+
+  // Sync lifts: delete old ones, recreate from updated exercises
+  if (data.exercises) {
+    const liftsRef = collection(db, 'users', userId, 'lifts');
+    const liftsQuery = query(liftsRef, where('workoutId', '==', workoutId));
+    const liftsSnap = await getDocs(liftsQuery);
+    const deletePromises = liftsSnap.docs.map(liftDoc =>
+      deleteDoc(doc(db, 'users', userId, 'lifts', liftDoc.id))
+    );
+    await Promise.all(deletePromises);
+
+    // Get workout date for new lifts
+    const workoutSnap = await getDoc(workoutRef);
+    const workoutDate = workoutSnap.data()?.date || Timestamp.now();
+
+    for (const exercise of data.exercises) {
+      const type = exercise.type as 'squat' | 'bench' | 'deadlift';
+      if (!['squat', 'bench', 'deadlift'].includes(type)) continue;
+
+      const completedSets = exercise.sets.filter(s => s.weight > 0 && s.reps > 0);
+      if (completedSets.length === 0) continue;
+
+      const bestSet = completedSets.reduce((best, current) => {
+        const currentMax = calculateOneRepMax(current.weight, current.reps);
+        const bestMax = calculateOneRepMax(best.weight, best.reps);
+        return currentMax > bestMax ? current : best;
+      });
+
+      await addDoc(liftsRef, {
+        userId,
+        workoutId,
+        exercise: type,
+        weight: bestSet.weight,
+        reps: bestSet.reps,
+        estimatedMax: calculateOneRepMax(bestSet.weight, bestSet.reps),
+        date: workoutDate,
+      });
+    }
+  }
 }
 
 export async function deleteWorkout(userId: string, workoutId: string): Promise<void> {

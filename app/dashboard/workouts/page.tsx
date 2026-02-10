@@ -66,6 +66,9 @@ export default function WorkoutsPage() {
         notes: editedWorkout.notes
       });
       await refresh();
+      mutate(`prs-${user.uid}`);
+      mutate(`estimated-${user.uid}`);
+      mutate(`best-session-${user.uid}`);
       setEditingWorkoutId(null);
       setEditedWorkout(null);
     } catch (error) {

@@ -9,6 +9,7 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { MobileHeader } from '@/components/layout/MobileHeader';
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { GlobalTimerNotifier } from '@/components/workout/GlobalTimerNotifier';
 
 export default function DashboardLayout({
   children,
@@ -60,6 +61,7 @@ export default function DashboardLayout({
           open={showOnboarding}
           onComplete={handleOnboardingComplete}
         />
+        <GlobalTimerNotifier />
       </div>
     </ThemeProvider>
   );

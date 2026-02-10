@@ -10,9 +10,10 @@ import { signOut } from '@/lib/firebase/auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { User, Settings, LogOut, Save, Scale, Dumbbell, Calendar, Trophy, Video, Star, Pencil } from 'lucide-react';
-import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, Theme, TrainingMaxPercentage, ProgramType } from '@/types/user';
-import { Palette } from 'lucide-react';
+import { Gender, getWeightCategory, WEIGHT_CATEGORIES_MALE, WEIGHT_CATEGORIES_FEMALE, PriorityLift, ThemeColor, ThemeMode, TrainingMaxPercentage, ProgramType } from '@/types/user';
+import { Palette, Sun, Moon, Monitor } from 'lucide-react';
 import { getAllStandards } from '@/lib/calculations/standards';
+import { resolveThemePreferences, composeLegacyTheme } from '@/lib/theme';
 import { useDashboardData } from '@/lib/hooks/useFirestoreData';
 import { SquatIcon, BenchIcon, DeadliftIcon } from '@/components/icons/LiftIcons';
 import { VideoUpload } from '@/components/VideoUpload';
@@ -40,7 +41,8 @@ export default function ProfilePage() {
   const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5>(userData?.programSettings?.daysPerWeek || 3);
   const [durationWeeks, setDurationWeeks] = useState<4 | 6>(userData?.programSettings?.durationWeeks || 4);
   const [priorityLift, setPriorityLift] = useState<PriorityLift>(userData?.programSettings?.priorityLift || 'squat');
-  const [theme, setTheme] = useState<Theme>(userData?.preferences?.theme || 'dark');
+  const [themeColor, setThemeColor] = useState<ThemeColor>(() => resolveThemePreferences(userData?.preferences).color);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => resolveThemePreferences(userData?.preferences).mode);
   const [programType, setProgramType] = useState<ProgramType>(userData?.programSettings?.programType || '531');
   const [trainingMaxPercentage, setTrainingMaxPercentage] = useState<TrainingMaxPercentage>(userData?.programSettings?.trainingMaxPercentage || 90);
 
@@ -52,7 +54,9 @@ export default function ProfilePage() {
       setGender(userData.gender || 'male');
       setExperience((userData.experience as Experience) || 'beginner');
       setWeightUnit((userData.preferences?.weightUnit as WeightUnit) || 'kg');
-      setTheme(userData.preferences?.theme || 'dark');
+      const resolved = resolveThemePreferences(userData.preferences);
+      setThemeColor(resolved.color);
+      setThemeMode(resolved.mode);
       setDaysPerWeek(userData.programSettings?.daysPerWeek || 3);
       setDurationWeeks(userData.programSettings?.durationWeeks || 4);
       setPriorityLift(userData.programSettings?.priorityLift || 'squat');
@@ -77,12 +81,15 @@ export default function ProfilePage() {
     }
   };
 
-  const savePreferences = (overrides: Partial<{ weightUnit: WeightUnit; theme: Theme }>) => {
+  const savePreferences = (overrides: Partial<{ weightUnit: WeightUnit; themeColor: ThemeColor; themeMode: ThemeMode }>) => {
+    const c = overrides.themeColor ?? themeColor;
+    const m = overrides.themeMode ?? themeMode;
     const prefs = {
-      weightUnit,
-      theme,
+      weightUnit: overrides.weightUnit ?? weightUnit,
+      theme: composeLegacyTheme(c, m),
+      themeColor: c,
+      themeMode: m,
       restTimerDefault: userData?.preferences?.restTimerDefault,
-      ...overrides,
     };
     saveField({ preferences: prefs });
   };
@@ -143,13 +150,28 @@ export default function ProfilePage() {
     savePreferences({ weightUnit: unit });
   };
 
-  const handleThemeChange = (t: Theme) => {
-    setTheme(t);
-    // Instant visual update without waiting for Firestore round-trip
+  const applyThemeInstant = (color: ThemeColor, mode: ThemeMode) => {
     const root = document.documentElement;
-    (['light', 'dark', 'forest', 'rose', 'ocean', 'sunset'] as const).forEach(c => root.classList.remove(c));
-    if (t !== 'light') root.classList.add(t);
-    savePreferences({ theme: t });
+    (['forest', 'rose', 'ocean', 'sunset'] as const).forEach(c => root.classList.remove(c));
+    if (color !== 'rouge') root.classList.add(color);
+    if (mode === 'auto') {
+      const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', dark);
+    } else {
+      root.classList.toggle('dark', mode === 'dark');
+    }
+  };
+
+  const handleColorChange = (c: ThemeColor) => {
+    setThemeColor(c);
+    applyThemeInstant(c, themeMode);
+    savePreferences({ themeColor: c });
+  };
+
+  const handleModeChange = (m: ThemeMode) => {
+    setThemeMode(m);
+    applyThemeInstant(themeColor, m);
+    savePreferences({ themeMode: m });
   };
 
   const handleProgramTypeChange = (type: ProgramType) => {
@@ -386,31 +408,58 @@ export default function ProfilePage() {
             <div className="space-y-2">
               <Label className="flex items-center gap-1 text-foreground font-medium">
                 <Palette className="h-3 w-3" />
-                Thème
+                Couleur
               </Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-wrap gap-2">
                 {([
-                  { value: 'light' as const, label: 'Clair', color: 'bg-red-500' },
-                  { value: 'dark' as const, label: 'Sombre', color: 'bg-red-600' },
-                  { value: 'forest' as const, label: 'Forêt', color: 'bg-emerald-500' },
-                  { value: 'rose' as const, label: 'Rose', color: 'bg-pink-500' },
-                  { value: 'ocean' as const, label: 'Océan', color: 'bg-cyan-500' },
-                  { value: 'sunset' as const, label: 'Sunset', color: 'bg-amber-500' },
-                ]).map((t) => (
+                  { value: 'rouge' as const, label: 'Rouge', dot: 'bg-red-500' },
+                  { value: 'forest' as const, label: 'Forêt', dot: 'bg-emerald-500' },
+                  { value: 'rose' as const, label: 'Rose', dot: 'bg-pink-500' },
+                  { value: 'ocean' as const, label: 'Océan', dot: 'bg-cyan-500' },
+                  { value: 'sunset' as const, label: 'Sunset', dot: 'bg-amber-500' },
+                ]).map((c) => (
                   <button
-                    key={t.value}
+                    key={c.value}
                     type="button"
-                    onClick={() => handleThemeChange(t.value)}
+                    onClick={() => handleColorChange(c.value)}
                     className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                      theme === t.value
+                      themeColor === c.value
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background hover:bg-muted border-border'
                     }`}
                   >
-                    <span className={`w-4 h-4 rounded-full ${t.color}`} />
-                    {t.label}
+                    <span className={`w-4 h-4 rounded-full ${c.dot}`} />
+                    {c.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-foreground font-medium">Mode</Label>
+              <div className="flex gap-2">
+                {([
+                  { value: 'light' as const, label: 'Clair', icon: Sun },
+                  { value: 'dark' as const, label: 'Sombre', icon: Moon },
+                  { value: 'auto' as const, label: 'Auto', icon: Monitor },
+                ]).map((m) => {
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={() => handleModeChange(m.value)}
+                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                        themeMode === m.value
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {m.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </CardContent>

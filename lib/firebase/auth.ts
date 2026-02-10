@@ -41,7 +41,9 @@ async function createOrUpdateUser(firebaseUser: FirebaseUser): Promise<void> {
       createdAt: serverTimestamp(),
       preferences: {
         weightUnit: 'kg',
-        theme: 'light',
+        theme: 'dark',
+        themeColor: 'rouge',
+        themeMode: 'dark',
         restTimerDefault: 180,
       },
       bodyweight: 0,

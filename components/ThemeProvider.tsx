@@ -2,25 +2,40 @@
 
 import { useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { Theme } from '@/types/user';
+import { ThemeColor } from '@/types/user';
+import { resolveThemePreferences } from '@/lib/theme';
 
-const THEME_CLASSES: Theme[] = ['light', 'dark', 'forest', 'rose', 'ocean', 'sunset'];
+const COLOR_CLASSES: ThemeColor[] = ['forest', 'rose', 'ocean', 'sunset'];
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { userData } = useAuth();
-  const theme = userData?.preferences?.theme || 'dark';
+  const { color, mode } = resolveThemePreferences(userData?.preferences);
 
   useEffect(() => {
     const root = document.documentElement;
 
-    THEME_CLASSES.forEach(t => {
-      root.classList.remove(t);
-    });
+    // Remove all color classes
+    COLOR_CLASSES.forEach(c => root.classList.remove(c));
 
-    if (theme !== 'light') {
-      root.classList.add(theme);
+    // Add color class (rouge = default, no class needed)
+    if (color !== 'rouge') {
+      root.classList.add(color);
     }
-  }, [theme]);
+
+    // Handle mode
+    if (mode === 'auto') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const apply = (dark: boolean) => {
+        root.classList.toggle('dark', dark);
+      };
+      apply(mq.matches);
+      const handler = (e: MediaQueryListEvent) => apply(e.matches);
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    } else {
+      root.classList.toggle('dark', mode === 'dark');
+    }
+  }, [color, mode]);
 
   return <>{children}</>;
 }

@@ -23,9 +23,9 @@ export function usePRs(userId: string | undefined) {
       return { squat, bench, deadlift };
     },
     {
-      revalidateOnFocus: false,
+      revalidateOnFocus: true,
       revalidateOnReconnect: false,
-      dedupingInterval: 60000, // 1 minute deduplication
+      dedupingInterval: 10000,
     }
   );
 
@@ -51,9 +51,9 @@ export function useEstimated1RMs(userId: string | undefined) {
       return { squat, bench, deadlift };
     },
     {
-      revalidateOnFocus: false,
+      revalidateOnFocus: true,
       revalidateOnReconnect: false,
-      dedupingInterval: 60000,
+      dedupingInterval: 10000,
     }
   );
 
@@ -73,9 +73,9 @@ export function useBestSession(userId: string | undefined) {
       return getBestSBDSession(userId);
     },
     {
-      revalidateOnFocus: false,
+      revalidateOnFocus: true,
       revalidateOnReconnect: false,
-      dedupingInterval: 60000,
+      dedupingInterval: 10000,
     }
   );
 

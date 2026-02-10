@@ -106,6 +106,7 @@ export default function DashboardPage() {
         durationWeeks: programSettings.durationWeeks,
         priorityLift: programSettings.priorityLift,
         trainingMaxPercentage: programSettings.trainingMaxPercentage,
+        programType: programSettings.programType,
       })
     : null;
 

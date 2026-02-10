@@ -85,11 +85,11 @@ export default function ProfilePage() {
     const c = overrides.themeColor ?? themeColor;
     const m = overrides.themeMode ?? themeMode;
     const prefs = {
+      ...(userData?.preferences ?? {}),
       weightUnit: overrides.weightUnit ?? weightUnit,
       theme: composeLegacyTheme(c, m),
       themeColor: c,
       themeMode: m,
-      restTimerDefault: userData?.preferences?.restTimerDefault,
     };
     saveField({ preferences: prefs });
   };

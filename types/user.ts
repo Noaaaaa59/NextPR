@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 export type WeightUnit = 'kg' | 'lbs';
 export type Experience = 'beginner' | 'intermediate' | 'advanced' | 'elite';
 export type Theme = 'light' | 'dark' | 'forest' | 'rose' | 'ocean' | 'sunset';
-export type ThemeColor = 'rouge' | 'forest' | 'rose' | 'ocean' | 'sunset';
+export type ThemeColor = 'rouge' | 'neutre' | 'forest' | 'rose' | 'ocean' | 'sunset';
 export type ThemeMode = 'light' | 'dark' | 'auto';
 export type Gender = 'male' | 'female';
 

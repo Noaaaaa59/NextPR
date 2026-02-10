@@ -152,7 +152,7 @@ export default function ProfilePage() {
 
   const applyThemeInstant = (color: ThemeColor, mode: ThemeMode) => {
     const root = document.documentElement;
-    (['forest', 'rose', 'ocean', 'sunset'] as const).forEach(c => root.classList.remove(c));
+    (['neutre', 'forest', 'rose', 'ocean', 'sunset'] as const).forEach(c => root.classList.remove(c));
     if (color !== 'rouge') root.classList.add(color);
     if (mode === 'auto') {
       const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -413,6 +413,7 @@ export default function ProfilePage() {
               <div className="flex flex-wrap gap-2">
                 {([
                   { value: 'rouge' as const, label: 'Rouge', dot: 'bg-red-500' },
+                  { value: 'neutre' as const, label: 'Neutre', dot: 'bg-slate-400' },
                   { value: 'forest' as const, label: 'Forêt', dot: 'bg-emerald-500' },
                   { value: 'rose' as const, label: 'Rose', dot: 'bg-pink-500' },
                   { value: 'ocean' as const, label: 'Océan', dot: 'bg-cyan-500' },

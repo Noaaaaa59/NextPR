@@ -5,7 +5,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { ThemeColor } from '@/types/user';
 import { resolveThemePreferences } from '@/lib/theme';
 
-const COLOR_CLASSES: ThemeColor[] = ['forest', 'rose', 'ocean', 'sunset'];
+const COLOR_CLASSES: ThemeColor[] = ['neutre', 'forest', 'rose', 'ocean', 'sunset'];
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { userData } = useAuth();

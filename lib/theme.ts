@@ -20,6 +20,6 @@ export function resolveThemePreferences(prefs?: UserPreferences): { color: Theme
 }
 
 export function composeLegacyTheme(color: ThemeColor, mode: ThemeMode): Theme {
-  if (color === 'rouge') return mode === 'light' ? 'light' : 'dark';
+  if (color === 'rouge' || color === 'neutre') return mode === 'light' ? 'light' : 'dark';
   return color;
 }

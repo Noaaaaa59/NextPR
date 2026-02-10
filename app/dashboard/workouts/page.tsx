@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Calendar, Dumbbell, Trash2, Pencil, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { useWorkouts } from '@/lib/hooks/useFirestoreData';
+import { useWorkouts, useDraftWorkout } from '@/lib/hooks/useFirestoreData';
 import { updateWorkout, deleteWorkout } from '@/lib/firebase/firestore';
 import { calculateOneRepMax } from '@/lib/calculations/oneRepMax';
 import { mutate } from 'swr';
@@ -16,7 +17,15 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function WorkoutsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const { workouts, isLoading: loading, refresh } = useWorkouts(user?.uid);
+  const { draft, isLoading: draftLoading } = useDraftWorkout(user?.uid);
+
+  useEffect(() => {
+    if (!draftLoading && draft) {
+      router.replace('/dashboard/workouts/new');
+    }
+  }, [draft, draftLoading, router]);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [editedWorkout, setEditedWorkout] = useState<Workout | null>(null);
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);

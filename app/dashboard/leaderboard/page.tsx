@@ -344,7 +344,7 @@ export default function LeaderboardPage() {
                           </div>
 
                           <div className="text-right">
-                            <p className={`font-bold ${rank <= 3 ? 'text-destructive' : ''}`}>
+                            <p className={`font-bold ${rank <= 3 ? 'text-primary' : ''}`}>
                               {entry.total}
                               <span className="text-xs font-normal text-muted-foreground ml-1">kg</span>
                             </p>

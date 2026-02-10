@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,23 @@ export default function ProfilePage() {
   const [theme, setTheme] = useState<Theme>(userData?.preferences?.theme || 'dark');
   const [programType, setProgramType] = useState<ProgramType>(userData?.programSettings?.programType || '531');
   const [trainingMaxPercentage, setTrainingMaxPercentage] = useState<TrainingMaxPercentage>(userData?.programSettings?.trainingMaxPercentage || 90);
+
+  // Sync local state when userData loads/changes (fixes state reset on navigation)
+  useEffect(() => {
+    if (userData) {
+      setDisplayName(userData.displayName || '');
+      setBodyweight(userData.bodyweight?.toString() || '');
+      setGender(userData.gender || 'male');
+      setExperience((userData.experience as Experience) || 'beginner');
+      setWeightUnit((userData.preferences?.weightUnit as WeightUnit) || 'kg');
+      setTheme(userData.preferences?.theme || 'dark');
+      setDaysPerWeek(userData.programSettings?.daysPerWeek || 3);
+      setDurationWeeks(userData.programSettings?.durationWeeks || 4);
+      setPriorityLift(userData.programSettings?.priorityLift || 'squat');
+      setProgramType(userData.programSettings?.programType || '531');
+      setTrainingMaxPercentage(userData.programSettings?.trainingMaxPercentage || 90);
+    }
+  }, [userData]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -220,7 +237,7 @@ export default function ProfilePage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="displayName" className="text-destructive font-medium">Nom</Label>
+                <Label htmlFor="displayName" className="text-foreground font-medium">Nom</Label>
                 {isEditingIdentity ? (
                   <Input
                     id="displayName"
@@ -234,14 +251,14 @@ export default function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-destructive font-medium">Email</Label>
+                <Label className="text-foreground font-medium">Email</Label>
                 <p className="text-sm font-medium py-2">{user?.email || '—'}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-destructive font-medium">Genre</Label>
+                <Label className="text-foreground font-medium">Genre</Label>
                 {isEditingIdentity ? (
                   <div className="flex gap-2">
                     <button
@@ -275,7 +292,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bodyweight" className="flex items-center gap-1 text-destructive font-medium">
+                <Label htmlFor="bodyweight" className="flex items-center gap-1 text-foreground font-medium">
                   <Scale className="h-3 w-3" />
                   Poids de corps ({weightUnit})
                 </Label>
@@ -303,7 +320,7 @@ export default function ProfilePage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="experience" className="flex items-center gap-1 text-destructive font-medium">
+              <Label htmlFor="experience" className="flex items-center gap-1 text-foreground font-medium">
                 <Dumbbell className="h-3 w-3" />
                 Expérience
               </Label>
@@ -338,7 +355,7 @@ export default function ProfilePage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-destructive font-medium">Unité de poids</Label>
+                <Label className="text-foreground font-medium">Unité de poids</Label>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -367,7 +384,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-1 text-destructive font-medium">
+              <Label className="flex items-center gap-1 text-foreground font-medium">
                 <Palette className="h-3 w-3" />
                 Thème
               </Label>
@@ -409,7 +426,7 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-destructive font-medium">Méthode</Label>
+              <Label className="text-foreground font-medium">Méthode</Label>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -442,7 +459,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-destructive font-medium">Durée du cycle</Label>
+              <Label className="text-foreground font-medium">Durée du cycle</Label>
               <div className="flex gap-2">
                 {([4, 6] as const).map((weeks) => (
                   <button
@@ -463,7 +480,7 @@ export default function ProfilePage() {
 
             {programType === '531' && (
               <div className="space-y-2">
-                <Label className="text-destructive font-medium">Jours par semaine</Label>
+                <Label className="text-foreground font-medium">Jours par semaine</Label>
                 <div className="flex gap-2">
                   {([3, 4, 5] as const).map((days) => (
                     <button
@@ -485,7 +502,7 @@ export default function ProfilePage() {
 
             {programType === '531' && daysPerWeek > 3 && (
               <div className="space-y-2">
-                <Label className="text-destructive font-medium">Lift prioritaire</Label>
+                <Label className="text-foreground font-medium">Lift prioritaire</Label>
                 <div className="flex gap-2">
                   {([
                     { value: 'squat' as const, label: 'Squat' },
@@ -513,7 +530,7 @@ export default function ProfilePage() {
             )}
 
             <div className="space-y-2">
-              <Label className="text-destructive font-medium">Training Max (%)</Label>
+              <Label className="text-foreground font-medium">Training Max (%)</Label>
               <div className="flex gap-2">
                 {([90, 95, 100] as const).map((pct) => (
                   <button

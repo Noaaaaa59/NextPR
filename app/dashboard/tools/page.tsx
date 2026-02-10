@@ -161,7 +161,7 @@ export default function ToolsPage() {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-destructive font-medium">Poids cible (kg)</Label>
+              <Label className="text-foreground font-medium">Poids cible (kg)</Label>
               <Input
                 type="number"
                 value={targetWeight}
@@ -173,7 +173,7 @@ export default function ToolsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-destructive font-medium">Barre</Label>
+              <Label className="text-foreground font-medium">Barre</Label>
               <div className="flex gap-1">
                 {BAR_WEIGHTS.map((w) => (
                   <button
@@ -194,7 +194,7 @@ export default function ToolsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-destructive font-medium">Disques disponibles</Label>
+            <Label className="text-foreground font-medium">Disques disponibles</Label>
             <div className="flex flex-wrap gap-2">
               {ALL_PLATES.map((plate) => {
                 const isSelected = availablePlates.includes(plate);

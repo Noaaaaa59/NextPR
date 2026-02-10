@@ -187,7 +187,7 @@ export default function ProgramsPage() {
                   <span
                     key={setIdx}
                     className={`text-xs px-2 py-0.5 rounded ${
-                      set.amrap ? 'bg-destructive/10 text-destructive font-medium' : 'bg-background'
+                      set.amrap ? 'bg-primary/10 text-primary font-medium' : 'bg-background'
                     }`}
                   >
                     {formatSetDisplay(set)}
@@ -434,15 +434,15 @@ export default function ProgramsPage() {
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="bg-background rounded-lg p-3 text-center">
                     <p className="text-xs text-muted-foreground">Squat 1RM</p>
-                    <p className="font-bold text-destructive">{recommendation.program.maxes.squat} kg</p>
+                    <p className="font-bold text-primary">{recommendation.program.maxes.squat} kg</p>
                   </div>
                   <div className="bg-background rounded-lg p-3 text-center">
                     <p className="text-xs text-muted-foreground">Bench 1RM</p>
-                    <p className="font-bold text-destructive">{recommendation.program.maxes.bench} kg</p>
+                    <p className="font-bold text-primary">{recommendation.program.maxes.bench} kg</p>
                   </div>
                   <div className="bg-background rounded-lg p-3 text-center">
                     <p className="text-xs text-muted-foreground">Deadlift 1RM</p>
-                    <p className="font-bold text-destructive">{recommendation.program.maxes.deadlift} kg</p>
+                    <p className="font-bold text-primary">{recommendation.program.maxes.deadlift} kg</p>
                   </div>
                 </div>
 

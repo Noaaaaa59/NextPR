@@ -52,7 +52,7 @@ function PodiumStep({
             <p className="text-xs font-medium text-foreground truncate max-w-[80px]">
               {entry.displayName || 'Anonyme'}
             </p>
-            <p className="text-sm font-bold text-destructive">
+            <p className="text-sm font-bold text-primary">
               {entry.value} kg
             </p>
             {entry.videoUrl && entry.liftId && entry.oderId && (

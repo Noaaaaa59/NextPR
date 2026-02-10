@@ -196,8 +196,8 @@ export default function DashboardPage() {
           <p className="text-xl font-bold text-primary">...</p>
         ) : pr ? (
           <>
-            <p className="text-xl font-bold text-destructive leading-tight">
-              {pr.weight} <span className="text-xs font-medium text-destructive/70">{weightUnit}</span>
+            <p className="text-xl font-bold text-primary leading-tight">
+              {pr.weight} <span className="text-xs font-medium text-primary/70">{weightUnit}</span>
             </p>
             {estimated && estimated.estimatedMax > pr.weight ? (
               <p className="text-[10px] text-primary leading-tight">~{estimated.estimatedMax} est.</p>

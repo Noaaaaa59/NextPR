@@ -114,7 +114,7 @@ export function StrengthStandardsChart({
 
       <div className="text-center">
         <span className="text-sm">
-          Ton PR: <span className="font-bold text-destructive">{currentWeight} kg</span>
+          Ton PR: <span className="font-bold text-primary">{currentWeight} kg</span>
         </span>
         {nextLevel && (
           <span className="text-xs text-muted-foreground ml-2">

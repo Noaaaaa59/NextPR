@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useDashboardData } from '@/lib/hooks/useFirestoreData';
 import { getStrengthLevel } from '@/lib/calculations/standards';
@@ -9,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WeekPrescription, DayPrescription } from '@/lib/training/types';
 import { Experience } from '@/types/user';
-import { Dumbbell, Calendar, ChevronRight, ChevronDown, CheckCircle, Zap, Play, Wrench, Target, SkipForward, RotateCcw } from 'lucide-react';
+import { Dumbbell, Calendar, ChevronRight, ChevronDown, CheckCircle, Zap, Play, Wrench, Target, SkipForward, RotateCcw, Lock, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { updateUserProfile } from '@/lib/firebase/firestore';
@@ -35,6 +36,9 @@ export default function ProgramsPage() {
   const [restartDay, setRestartDay] = useState(1);
   const [restarting, setRestarting] = useState(false);
   const [showRecommendation, setShowRecommendation] = useState(false);
+  const [showWeekBypassDialog, setShowWeekBypassDialog] = useState(false);
+  const [bypassTargetWeekIndex, setBypassTargetWeekIndex] = useState<number | null>(null);
+  const [bypassedWeeks, setBypassedWeeks] = useState<Set<number>>(new Set());
 
   const bodyweight = userData?.bodyweight || 80;
   const gender = userData?.gender || 'male';
@@ -73,6 +77,47 @@ export default function ProgramsPage() {
 
   const loading = prsLoading;
 
+  // Initialize weekStartDates for current week if not set
+  useEffect(() => {
+    if (!user || !userData?.programProgress) return;
+    const prog = userData.programProgress;
+    if (!prog.weekStartDates?.[prog.currentWeek]) {
+      updateUserProfile(user.uid, {
+        programProgress: {
+          ...prog,
+          weekStartDates: {
+            ...(prog.weekStartDates || {}),
+            [prog.currentWeek]: Timestamp.now(),
+          },
+        },
+      }).then(() => refreshUserData());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, userData?.programProgress?.currentWeek]);
+
+  // Returns true if weekIndex (0-based) is locked (previous week started < 7 days ago)
+  const isWeekLocked = (weekIndex: number): boolean => {
+    if (weekIndex === 0) return false; // Week 1 is never locked
+    const prevWeekNumber = weekIndex; // weekIndex is 0-based, so week N-1 = weekIndex (1-based)
+    const weekStartDates = progress.weekStartDates;
+    if (!weekStartDates?.[prevWeekNumber]) return false;
+    const prevWeekStart = weekStartDates[prevWeekNumber].toDate();
+    const now = new Date();
+    const daysSinceStart = (now.getTime() - prevWeekStart.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceStart < 7;
+  };
+
+  // Returns number of remaining days before week unlocks
+  const getDaysUntilUnlock = (weekIndex: number): number => {
+    const prevWeekNumber = weekIndex;
+    const weekStartDates = progress.weekStartDates;
+    if (!weekStartDates?.[prevWeekNumber]) return 0;
+    const prevWeekStart = weekStartDates[prevWeekNumber].toDate();
+    const now = new Date();
+    const daysSinceStart = (now.getTime() - prevWeekStart.getTime()) / (1000 * 60 * 60 * 24);
+    return Math.ceil(7 - daysSinceStart);
+  };
+
   const handleLaunchWorkout = (day: DayPrescription, weekNumber: number, dayNumber: number) => {
     const totalWeeks = recommendation?.program.weeks.length || 1;
     const daysPerWeek = recommendation?.program.weeks[0]?.days.length || 3;
@@ -99,10 +144,16 @@ export default function ProgramsPage() {
         }
       }
 
+      const weekStartDates = { ...(progress.weekStartDates || {}) };
+      if (nextWeek !== progress.currentWeek) {
+        weekStartDates[nextWeek] = Timestamp.now();
+      }
+
       await updateUserProfile(user.uid, {
         programProgress: {
           currentWeek: nextWeek,
-          currentDay: nextDay
+          currentDay: nextDay,
+          weekStartDates,
         }
       });
       await refreshUserData();
@@ -116,10 +167,18 @@ export default function ProgramsPage() {
 
     setRestarting(true);
     try {
+      const weekStartDates: { [weekNumber: number]: Timestamp } = { ...(progress.weekStartDates || {}) };
+      weekStartDates[restartWeek] = Timestamp.now();
+      // Clear start dates for weeks after restartWeek
+      Object.keys(weekStartDates).forEach(k => {
+        if (parseInt(k) > restartWeek) delete weekStartDates[parseInt(k)];
+      });
+
       await updateUserProfile(user.uid, {
         programProgress: {
           currentWeek: restartWeek,
-          currentDay: restartDay
+          currentDay: restartDay,
+          weekStartDates,
         }
       });
       await refreshUserData();
@@ -133,6 +192,24 @@ export default function ProgramsPage() {
     setRestartWeek(1);
     setRestartDay(1);
     setShowRestartDialog(true);
+  };
+
+  const handleWeekCardClick = (index: number, isSelected: boolean) => {
+    const locked = isWeekLocked(index) && !bypassedWeeks.has(index);
+    if (locked) {
+      setBypassTargetWeekIndex(index);
+      setShowWeekBypassDialog(true);
+    } else {
+      setSelectedWeek(isSelected ? null : index);
+    }
+  };
+
+  const handleBypassConfirm = () => {
+    if (bypassTargetWeekIndex !== null) {
+      setBypassedWeeks((prev: Set<number>) => new Set([...prev, bypassTargetWeekIndex as number]));
+      setSelectedWeek(bypassTargetWeekIndex);
+    }
+    setShowWeekBypassDialog(false);
   };
 
   const renderDayDetail = (day: DayPrescription, weekNumber: number, isCurrentDay: boolean = false) => {
@@ -207,14 +284,16 @@ export default function ProgramsPage() {
     const isSelected = selectedWeek === index;
     const isDeload = week.isDeload;
     const isCurrentWeek = index === currentWeekIndex;
+    const locked = isWeekLocked(index) && !bypassedWeeks.has(index);
+    const daysLeft = locked ? getDaysUntilUnlock(index) : 0;
 
     return (
       <Card
         key={week.weekNumber}
         className={`cursor-pointer transition-all ${
           isSelected ? 'border-primary ring-2 ring-primary/20' : ''
-        } ${isDeload ? 'bg-muted/30' : ''} ${isCurrentWeek && !isSelected ? 'border-primary/50' : ''}`}
-        onClick={() => setSelectedWeek(isSelected ? null : index)}
+        } ${isDeload ? 'bg-muted/30' : ''} ${isCurrentWeek && !isSelected ? 'border-primary/50' : ''} ${locked ? 'opacity-60' : ''}`}
+        onClick={() => handleWeekCardClick(index, isSelected)}
       >
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -229,7 +308,15 @@ export default function ProgramsPage() {
                 </span>
               )}
             </div>
-            {isDeload ? (
+            {locked ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {daysLeft}j
+                </span>
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              </div>
+            ) : isDeload ? (
               <span className="text-xs bg-green-500/10 text-green-600 px-2 py-1 rounded-full">
                 Récup
               </span>
@@ -238,7 +325,7 @@ export default function ProgramsPage() {
             )}
           </div>
 
-          {isSelected && (
+          {isSelected && !locked && (
             <div className="mt-4 space-y-3 border-t pt-4" onClick={(e) => e.stopPropagation()}>
               <p className="text-xs text-muted-foreground">{week.focus}</p>
               {week.days.map((day) => {
@@ -392,6 +479,55 @@ export default function ProgramsPage() {
             </Button>
             <Button onClick={handleRestartCycle} disabled={restarting}>
               {restarting ? '...' : 'Confirmer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Week bypass recommendation dialog */}
+      <Dialog open={showWeekBypassDialog} onOpenChange={setShowWeekBypassDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-amber-500" />
+              Semaine pas encore disponible
+            </DialogTitle>
+            <DialogDescription>
+              Cette semaine sera disponible dans{' '}
+              <span className="font-semibold text-foreground">
+                {bypassTargetWeekIndex !== null ? getDaysUntilUnlock(bypassTargetWeekIndex) : 0} jour(s)
+              </span>
+              . Respecter les délais entre les semaines permet une récupération optimale et de meilleures progressions.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2">
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                Pourquoi attendre ?
+              </p>
+              <ul className="text-xs text-amber-700/80 dark:text-amber-400/80 space-y-1 list-disc list-inside">
+                <li>Ton corps a besoin de 7 jours pour s'adapter aux charges</li>
+                <li>Avancer trop vite augmente le risque de blessure</li>
+                <li>La progression à long terme sera meilleure en respectant le rythme</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowWeekBypassDialog(false)}
+              className="flex-1"
+            >
+              Attendre (recommandé)
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBypassConfirm}
+              className="flex-1"
+            >
+              Accéder quand même
             </Button>
           </DialogFooter>
         </DialogContent>

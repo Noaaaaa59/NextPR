@@ -40,6 +40,7 @@ export interface ProgramProgress {
   currentWeek: number;
   currentDay: number;
   startedAt?: Timestamp;
+  weekStartDates?: { [weekNumber: number]: Timestamp };
 }
 
 export type PriorityLift = 'squat' | 'bench' | 'deadlift';

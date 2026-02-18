@@ -98,20 +98,22 @@ export default function ProgramsPage() {
   // Returns true if weekIndex (0-based) is locked (previous week started < 7 days ago)
   const isWeekLocked = (weekIndex: number): boolean => {
     if (weekIndex === 0) return false; // Week 1 is never locked
+    if (weekIndex <= currentWeekIndex) return false; // Already reached this week
     const prevWeekNumber = weekIndex; // weekIndex is 0-based, so week N-1 = weekIndex (1-based)
     const weekStartDates = progress.weekStartDates;
-    if (!weekStartDates?.[prevWeekNumber]) return false;
+    // If previous week has no recorded start date, it hasn't been reached yet → locked
+    if (!weekStartDates?.[prevWeekNumber]) return true;
     const prevWeekStart = weekStartDates[prevWeekNumber].toDate();
     const now = new Date();
     const daysSinceStart = (now.getTime() - prevWeekStart.getTime()) / (1000 * 60 * 60 * 24);
     return daysSinceStart < 7;
   };
 
-  // Returns number of remaining days before week unlocks
-  const getDaysUntilUnlock = (weekIndex: number): number => {
+  // Returns number of remaining days before week unlocks (null if prev week not started yet)
+  const getDaysUntilUnlock = (weekIndex: number): number | null => {
     const prevWeekNumber = weekIndex;
     const weekStartDates = progress.weekStartDates;
-    if (!weekStartDates?.[prevWeekNumber]) return 0;
+    if (!weekStartDates?.[prevWeekNumber]) return null;
     const prevWeekStart = weekStartDates[prevWeekNumber].toDate();
     const now = new Date();
     const daysSinceStart = (now.getTime() - prevWeekStart.getTime()) / (1000 * 60 * 60 * 24);
@@ -285,7 +287,7 @@ export default function ProgramsPage() {
     const isDeload = week.isDeload;
     const isCurrentWeek = index === currentWeekIndex;
     const locked = isWeekLocked(index) && !bypassedWeeks.has(index);
-    const daysLeft = locked ? getDaysUntilUnlock(index) : 0;
+    const daysLeft = locked ? getDaysUntilUnlock(index) : null;
 
     return (
       <Card
@@ -310,10 +312,12 @@ export default function ProgramsPage() {
             </div>
             {locked ? (
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {daysLeft}j
-                </span>
+                {daysLeft !== null && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {daysLeft}j
+                  </span>
+                )}
                 <Lock className="h-4 w-4 text-muted-foreground" />
               </div>
             ) : isDeload ? (
@@ -493,11 +497,18 @@ export default function ProgramsPage() {
               Semaine pas encore disponible
             </DialogTitle>
             <DialogDescription>
-              Cette semaine sera disponible dans{' '}
-              <span className="font-semibold text-foreground">
-                {bypassTargetWeekIndex !== null ? getDaysUntilUnlock(bypassTargetWeekIndex) : 0} jour(s)
-              </span>
-              . Respecter les délais entre les semaines permet une récupération optimale et de meilleures progressions.
+              {bypassTargetWeekIndex !== null && getDaysUntilUnlock(bypassTargetWeekIndex) !== null ? (
+                <>
+                  Cette semaine sera disponible dans{' '}
+                  <span className="font-semibold text-foreground">
+                    {getDaysUntilUnlock(bypassTargetWeekIndex)} jour(s)
+                  </span>
+                  .{' '}
+                </>
+              ) : (
+                <>Cette semaine n&apos;est pas encore accessible. </>
+              )}
+              Respecter les délais entre les semaines permet une récupération optimale et de meilleures progressions.
             </DialogDescription>
           </DialogHeader>
 

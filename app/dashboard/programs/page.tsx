@@ -98,11 +98,15 @@ export default function ProgramsPage() {
   // Returns true if weekIndex (0-based) is locked (previous week started < 7 days ago)
   const isWeekLocked = (weekIndex: number): boolean => {
     if (weekIndex === 0) return false; // Week 1 is never locked
-    if (weekIndex <= currentWeekIndex) return false; // Already reached this week
+    if (weekIndex < currentWeekIndex) return false; // Already passed this week
     const prevWeekNumber = weekIndex; // weekIndex is 0-based, so week N-1 = weekIndex (1-based)
     const weekStartDates = progress.weekStartDates;
-    // If previous week has no recorded start date, it hasn't been reached yet → locked
-    if (!weekStartDates?.[prevWeekNumber]) return true;
+    if (!weekStartDates?.[prevWeekNumber]) {
+      // No recorded start date for previous week:
+      // - current week with no data = existing user without full history → don't lock
+      // - future week = previous week not yet reached → lock
+      return weekIndex !== currentWeekIndex;
+    }
     const prevWeekStart = weekStartDates[prevWeekNumber].toDate();
     const now = new Date();
     const daysSinceStart = (now.getTime() - prevWeekStart.getTime()) / (1000 * 60 * 60 * 24);
